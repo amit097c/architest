@@ -6,3 +6,5 @@ langgraph       # Used for graph-based workflows
 python-dotenv   # Used for loading environment variables
 requests        # Used in client.py for HTTP requests
 uvicorn         # Used for running the FastAPI server
+playwright      # Used for browser automation
+asyncio         # Used for async programming
