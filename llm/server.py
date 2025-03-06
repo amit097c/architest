@@ -22,12 +22,25 @@ async def chat(request: PromptReq):
         "test_steps": """
             Navigate to a Page: It goes to the page for bags on the Magento Software Testing Board website.
             Interact with the Page:
-            It clicks on a category in the menu (likely for a specific type of bag).
+            It clicks on the sale category in the menu.
             It scrolls down to the bottom of the page to load more content.
-            It clicks on a promotional text about a deal ("4 tees for the price of 3").
+            It clicks on a promotional text about the deal "4 tees for the price of 3".
             Verify URL: It checks if the URL contains the word "tees" after clicking the promotion, ensuring the page has changed correctly.
         """,
-        "url": "https://magento.softwaretestingboard.com"
+        "url": "https://magento.softwaretestingboard.com/gear/bags.html"
     }
+
+    # state_update = {
+    #     "messages": messages["messages"],
+    #     "test_steps": """
+    #         Navigate to a Page: It goes to main page of google search.
+    #         Interact with the Page:
+    #         Clicks on the search bar to type the text.
+    #         Types ChatGPT in the search bar.
+    #         Send Enter keystroke.
+    #         Verify URL: It checks if the URL contains the word "ChatGPT" Entering the search query, ensuring the page has changed correctly.
+    #     """,
+    #     "url": "https://www.google.com/"
+    # }
     output = graph.invoke(state_update, config)
     return {"message": output["messages"][-1].content}
