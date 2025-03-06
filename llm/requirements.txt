@@ -1,0 +1,8 @@
+fastapi          # Used in server.py for the API
+pydantic        # Used for request body validation
+langchain_openai # Used for Azure OpenAI integration
+langchain_core  # Used for message handling
+langgraph       # Used for graph-based workflows
+python-dotenv   # Used for loading environment variables
+requests        # Used in client.py for HTTP requests
+uvicorn         # Used for running the FastAPI server
