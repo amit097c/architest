@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import tiktoken
 import json
+import os
 
 def simple_clean(html):
     try:
@@ -104,11 +105,12 @@ def extract_important_elements(html_content):
                 "id": img.get("id", "N/A"),
                 "class": img.get("class", "N/A")
             })
-
-        with open("Backend/extracted_elements.json", "w", encoding="utf-8") as file:
+        
+        os.makedirs("extracted_files", exist_ok=True)
+        with open("extracted_files/extracted_elements.json", "w", encoding="utf-8") as file:
             json.dump(elements, file, indent=4)
 
-        print(f"Extracted elements saved to Backend/extracted_elements.json")
+        print(f"Extracted elements saved to extracted_elements.json")
 
         return elements
 
@@ -143,10 +145,11 @@ def clean_html_for_tests(html_content):
             cleaned_tokens = encoding.encode(cleaned_html)
             print(f"Token size after hard_clean: {len(cleaned_tokens)}")
 
-        with open('Backend/cleaned.html', 'w', encoding='utf-8') as file:
+        os.makedirs("extracted_files", exist_ok=True)
+        with open('extracted_files/cleaned.html', 'w', encoding='utf-8') as file:
             file.write(cleaned_html)
 
-        print(f"Cleaned HTML saved to Backend/cleaned.html")
+        print(f"Cleaned HTML saved to extracted_files/cleaned.html")
         return cleaned_html
     
     except Exception as e:

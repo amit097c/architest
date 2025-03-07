@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, TimeoutException
 import validators
 from clean_html import clean_html_for_tests, extract_important_elements
+import os
 
 def get_html(url):
     if not validators.url(url):
@@ -19,10 +20,11 @@ def get_html(url):
         driver.get(url)
         body = driver.find_element('tag name', 'body').get_attribute('outerHTML')
 
-        with open('Backend/scraped.html', 'w', encoding='utf-8') as file:
+        os.makedirs("extracted_files", exist_ok=True)
+        with open('extracted_files/scraped.html', 'w', encoding='utf-8') as file:
             file.write(body)
         driver.quit()
-        print(f"Scraped HTML saved to Backend/scraped.html")
+        print(f"Scraped HTML saved to extracted_files/scraped.html")
         return body
     
     except WebDriverException as e:
