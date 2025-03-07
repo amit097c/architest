@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from llm import graph
+from agent.agent import graph
 from langchain_core.messages import HumanMessage
 
 app = FastAPI()
