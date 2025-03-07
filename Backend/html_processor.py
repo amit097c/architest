@@ -145,7 +145,7 @@ def main():
     processed_result = processor.process_html(html_content)
 
 # Save processed result
-    processor.save_processed_html(processed_result, 'processed_html_output.json')
+    processor.save_processed_html(processed_result, 'extracted_files/processed_html_output.json')
         
         # Optional: Print processed elements
     print(json.dumps(processed_result, indent=2))
@@ -159,7 +159,7 @@ def main():
         processed_result = processor.process_html(html_content)
 
         # Save processed result
-        processor.save_processed_html(processed_result, 'processed_html_output.json')
+        processor.save_processed_html(processed_result, 'extracted_files/processed_html_output.json')
         
         # Optional: Print processed elements
         print(json.dumps(processed_result, indent=2))
