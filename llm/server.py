@@ -25,7 +25,7 @@ async def chat(request: Request):
         "messages": [],
         "url": data.get("url", ""),
         "test_steps": data.get("test_steps", ""),
-        "html_content": None,
+        "html_content": data.get("html_content", ""),
         "has_errors": False,
         "error_message": None,
     }

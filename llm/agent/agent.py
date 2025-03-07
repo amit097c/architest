@@ -5,7 +5,6 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, StateGraph, END
 from agent.utils.state import CustomState
 from agent.utils.nodes import (
-    extract_html,
     invoke_llm,
     execute_playwright_script,
     handle_errors,
@@ -86,14 +85,13 @@ error_prompt = ChatPromptTemplate(
 )
 
 # Define nodes
-workflow.add_node("extract_html", extract_html)
+# workflow.add_node("extract_html", extract_html)
 workflow.add_node("home", lambda state: invoke_llm(state, llm, prompt_template))
 workflow.add_node("execute", execute_playwright_script)
 workflow.add_node("retry", lambda state: retry_with_errors(state, llm, error_prompt))
 
 # Define the flow
-workflow.add_edge(START, "extract_html")
-workflow.add_edge("extract_html", "home")
+workflow.add_edge(START, "home")
 workflow.add_edge("home", "execute")
 
 # Add conditional routing based on errors
