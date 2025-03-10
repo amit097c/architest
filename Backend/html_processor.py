@@ -3,7 +3,6 @@ from typing import Dict, List, Any
 from bs4 import BeautifulSoup
 import json
 import logging
-import os
 
 class HTMLProcessor:
     def __init__(self, log_level=logging.INFO):
@@ -61,12 +60,8 @@ class HTMLProcessor:
         
         return selector
     
-    def process_html(self) -> Dict[str, Any]:
-
-        extracted_dir = "extracted_files"
-        cleaned_html_path = os.path.join(extracted_dir, "cleaned.html")
-        processed_html_path = os.path.join(extracted_dir, "processed_html_output.json")
-
+    def process_html(self, html_content: str) -> Dict[str, Any]:
+  
         # Processed elements storage
         processed_elements = {
             'elements': [],
@@ -77,18 +72,8 @@ class HTMLProcessor:
         }
         
         try:
-            # Read cleaned HTML file
-            if not os.path.exists(cleaned_html_path):
-                self.logger.error(f"File not found: {cleaned_html_path}")
-                return {"error": "cleaned.html file not found"}
-
-            with open(cleaned_html_path, "r", encoding="utf-8") as file:
-                html_content = file.read()
-
-            self.logger.info("🔍 Processing cleaned HTML...")
-
             # Parse HTML
-            soup = BeautifulSoup(html_content, "html.parser")
+            soup = BeautifulSoup(html_content, 'html.parser')
             
             # Iterate through elements
             for element in soup.find_all():
@@ -106,11 +91,6 @@ class HTMLProcessor:
 
             processed_elements['metadata']['total_elements'] = len(soup.find_all())
             processed_elements['metadata']['essential_elements_count'] = len(processed_elements['elements'])
-
-            # Save processed data to JSON
-            self.save_processed_html(processed_elements, processed_html_path)
-
-            self.logger.info(f"Processed HTML saved to {processed_html_path}")
         
         except Exception as e:
             self.logger.error(f"Error processing HTML: {e}")
