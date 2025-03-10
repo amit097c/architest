@@ -1,4 +1,4 @@
-beautifulsoup4
-tiktoken
+beautifulsoup4==4.12.3
+tiktoken==0.8.0
 selenium
 validators
