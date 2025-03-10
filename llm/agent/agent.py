@@ -19,7 +19,7 @@ load_dotenv()
 llm = AzureChatOpenAI(
     deployment_name=os.getenv("OPENAI_API_DEPLOYMENT"),
     model=os.getenv("OPENAI_API_MODEL"),
-    temperature=0.4,
+    temperature=0.2,
     max_tokens=1000,
 )
 
