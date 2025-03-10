@@ -19,7 +19,7 @@ load_dotenv()
 llm = AzureChatOpenAI(
     deployment_name=os.getenv("OPENAI_API_DEPLOYMENT"),
     model=os.getenv("OPENAI_API_MODEL"),
-    temperature=0.8,
+    temperature=0.4,
     max_tokens=1000,
 )
 
@@ -51,6 +51,9 @@ prompt_template = ChatPromptTemplate(
             - Use Playwright's best practices.
             - Ensure the script is robust and handles common edge cases.
             - Optimize for performance and readability.
+            - Set appropriate timeouts for actions based on their complexity.
+            - Use a default timeout of 10 seconds for all actions unless specified otherwise.
+            - Ensure the test cases run in headless mode.
             """,
         ),
         MessagesPlaceholder("messages"),
@@ -77,8 +80,12 @@ error_prompt = ChatPromptTemplate(
             Test Steps:
             {test_steps}
             
-            Generate only the corrected script without any explanations.
-            Avoid solutions that failed in previous attempts.
+            Constraints:
+            - Generate only the corrected script without any explanations.
+            - Avoid solutions that failed in previous attempts.
+            - Set appropriate timeouts for actions based on their complexity.
+            - Use a default timeout of 10 seconds for all actions unless specified otherwise.
+            - Ensure the test cases run in headless mode.
             """,
         )
     ]
