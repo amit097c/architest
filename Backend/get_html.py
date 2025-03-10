@@ -39,7 +39,3 @@ def get_html(url):
         print(f"Unexpected Error: {e}")
         return None
 
-
-url = input("Enter URL:")
-html = get_html(url)
-cleaned_html = clean_html_for_tests(html)
