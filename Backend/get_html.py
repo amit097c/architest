@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, TimeoutException
 import validators
-from clean_html import clean_html_for_tests, extract_important_elements
+from clean_html import clean_html_for_tests
 import os
 
 def get_html(url):
@@ -43,4 +43,3 @@ def get_html(url):
 url = input("Enter URL:")
 html = get_html(url)
 cleaned_html = clean_html_for_tests(html)
-extract_important_elements(cleaned_html)
