@@ -1,4 +1,3 @@
-import requests
 import tempfile
 import subprocess
 import os
@@ -44,6 +43,7 @@ def execute_playwright_script(state):
 
     try:
         subprocess.run(["pip", "install", "playwright"], check=True)
+        subprocess.run(["pip", "install", "pytest"], check=True)
         subprocess.run(["playwright", "install"], check=True)
 
         process = subprocess.run(["python", temp_path], capture_output=True, text=True)
