@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 import tiktoken
-import json
 import os
 
 def simple_clean(html):
@@ -43,79 +42,6 @@ def hard_clean(html_content, reduction_factor=0.9):
     
     except Exception as e:
         print(f"Error in hard_clean: {e}")
-        return None
-
-def extract_important_elements(html_content):
-    """Extract key elements for Playwright test generation and save them as JSON."""
-    
-    try:
-        soup = BeautifulSoup(html_content, "html.parser")
-
-        elements = {
-            "forms": [],
-            "inputs": [],
-            "buttons": [],
-            "links": [],
-            "images": []
-        }
-
-        # Extract Forms
-        for form in soup.find_all("form"):
-            elements["forms"].append({
-                "action": form.get("action", "N/A"),
-                "method": form.get("method", "GET"),
-                "id": form.get("id", "N/A"),
-                "class": form.get("class", "N/A"),
-                "fields": [inp.get("name", "N/A") for inp in form.find_all("input") if inp.get("name")]
-            })
-
-        # Extract Input Fields
-        for inp in soup.find_all("input"):
-            elements["inputs"].append({
-                "name": inp.get("name", "N/A"),
-                "type": inp.get("type", "text"),
-                "placeholder": inp.get("placeholder", "N/A"),
-                "id": inp.get("id", "N/A"),
-                "class": inp.get("class", "N/A")
-            })
-
-        # Extract Buttons
-        for btn in soup.find_all("button"):
-            elements["buttons"].append({
-                "text": btn.get_text(strip=True),
-                "id": btn.get("id", "N/A"),
-                "class": btn.get("class", "N/A"),
-                "type": btn.get("type", "button")
-            })
-
-        # Extract Links
-        for a in soup.find_all("a"):
-            elements["links"].append({
-                "text": a.get_text(strip=True),
-                "href": a.get("href", "N/A"),
-                "id": a.get("id", "N/A"),
-                "class": a.get("class", "N/A")
-            })
-
-        # Extract Images
-        for img in soup.find_all("img"):
-            elements["images"].append({
-                "src": img.get("src", "N/A"),
-                "alt": img.get("alt", "N/A"),
-                "id": img.get("id", "N/A"),
-                "class": img.get("class", "N/A")
-            })
-        
-        os.makedirs("extracted_files", exist_ok=True)
-        with open("extracted_files/extracted_elements.json", "w", encoding="utf-8") as file:
-            json.dump(elements, file, indent=4)
-
-        print(f"Extracted elements saved to extracted_elements.json")
-
-        return elements
-
-    except Exception as e:
-        print(f"Error in extract_important_elements: {e}")
         return None
 
 def clean_html_for_tests(html_content):
