@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from agent.agent import graph
-from langchain_core.messages import HumanMessage
 
 app = FastAPI()
 
