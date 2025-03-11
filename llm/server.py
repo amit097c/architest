@@ -40,6 +40,8 @@ async def chat(request: Request):
         "error_message": None,
     }
 
+    # print("html_content:", data.get("html_content", ""))
+
     config = {"configurable": {"thread_id": "abc123"}}
 
     try:

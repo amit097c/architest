@@ -14,10 +14,10 @@ def clean_script_response(response: str) -> str:
 
 def retrieve_examples(query: str, examples_dir: str = "examples") -> list:
     examples = []
-    for filename in os.listdir(examples_dir):
-        if filename.endswith(".py"):
-            with open(os.path.join(examples_dir, filename), "r") as file:
-                content = file.read()
-                examples.append(content)
+    # for filename in os.listdir(examples_dir):
+    #     if filename.endswith(".py"):
+    #         with open(os.path.join(examples_dir, filename), "r") as file:
+    #             content = file.read()
+    #             examples.append(content)
 
     return examples

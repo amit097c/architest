@@ -5,6 +5,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, StateGraph, END
 from agent.utils.state import CustomState
 from agent.utils.nodes import (
+    clear_memory,
     invoke_llm,
     execute_playwright_script,
     handle_errors,
@@ -47,8 +48,8 @@ prompt_template = ChatPromptTemplate(
             HTML Content:
             {html_content}
 
-            Retrieved Examples:
-            {examples}
+            URL:
+            {url}
             
             Constraints:
             - Use Playwright's best practices.
@@ -56,8 +57,7 @@ prompt_template = ChatPromptTemplate(
             - Optimize for performance and readability.
             - Set appropriate timeouts for actions based on their complexity.
             - Use a default timeout of 10 seconds for all actions unless specified otherwise.
-            - Ensure the test cases run in headfull mode.
-            - Take the screenshots of the validation element wait till the element loads and store in png format.
+            - Ensure the test cases run in headless mode.
             """,
         ),
         MessagesPlaceholder("messages"),
@@ -77,20 +77,22 @@ error_prompt = ChatPromptTemplate(
             
             Current error:
             {error_message}
+
+            Test Steps:
+            {test_steps}
             
             HTML Content:
             {html_content}
-            
-            Test Steps:
-            {test_steps}
+
+            URL:
+            {url}
             
             Constraints:
             - Generate only the corrected script without any explanations.
             - Avoid solutions that failed in previous attempts.
             - Set appropriate timeouts for actions based on their complexity.
-            - Use a default timeout of 10 seconds for all actions unless specified otherwise.
+            - Use a default timeout of 10 seconds for all actions unless needed.
             - Ensure the test cases run in headless mode.
-            - Take the screenshots of the validation element and store in png format.
             """,
         )
     ]
@@ -100,6 +102,7 @@ error_prompt = ChatPromptTemplate(
 workflow.add_node("home", lambda state: invoke_llm(state, llm, prompt_template))
 workflow.add_node("execute", execute_playwright_script)
 workflow.add_node("retry", lambda state: retry_with_errors(state, llm, error_prompt))
+workflow.add_node("clear", clear_memory)
 
 # Define the flow
 workflow.add_edge(START, "home")
@@ -107,10 +110,14 @@ workflow.add_edge("home", "execute")
 
 # Add conditional routing based on errors
 workflow.add_conditional_edges(
-    "execute", handle_errors, {"retry": "retry", "success": END}
+    "execute", handle_errors, {
+        "retry": "retry", 
+        "success": "clear"  # Route to clear instead of END
+    }
 )
 
 workflow.add_edge("retry", "execute")
+workflow.add_edge("clear", END)
 
 # Compile the workflow
 try:
