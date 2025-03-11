@@ -5,23 +5,6 @@ import os
 from agent.utils.tools import clean_script_response, retrieve_examples
 
 
-def extract_html(state):
-    url = state["url"]
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        html_content = response.text
-        state["html_content"] = html_content
-        state["messages"].append(
-            {"role": "system", "content": f"Successfully extracted HTML from {url}."}
-        )
-    except Exception as e:
-        state["messages"].append(
-            {"role": "system", "content": f"Failed to extract HTML: {str(e)}"}
-        )
-    return state
-
-
 def invoke_llm(state, llm, prompt_template):
     query = f"Generate Playwright test for {state['test_steps']}"
     examples = retrieve_examples(query)
@@ -102,7 +85,7 @@ def retry_with_errors(state, llm, error_prompt):
         {
             "original_script": state["messages"][-2].content,
             "error_message": state["error_message"],
-            "url": state["url"],
+            "html_content": state["html_content"],
             "test_steps": state["test_steps"],
         }
     )

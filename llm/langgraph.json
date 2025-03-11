@@ -1,14 +1,12 @@
 {
     "graph": {
         "nodes": [
-            "extract_html",
             "home",
             "execute",
             "retry"
         ],
         "edges": [
-            {"from": "START", "to": "extract_html"},
-            {"from": "extract_html", "to": "home"},
+            {"from": "START", "to": "home"},
             {"from": "home", "to": "execute"},
             {"from": "execute", "to": "retry", "condition": "handle_errors"},
             {"from": "retry", "to": "execute"},
