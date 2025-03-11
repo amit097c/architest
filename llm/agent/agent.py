@@ -35,8 +35,7 @@ prompt_template = ChatPromptTemplate(
         (
             "system",
             """
-            You are a test script generator. Generate only a Python Playwright test script for the given HTML content and test steps, remember to wait for pages to load. 
-            Do not include any explanations, comments, or additional text.
+            You are a test script generator. Generate only a Python Playwright test script for the given HTML content and test steps, remember to wait for pages to load.
 
             Test Steps:
             {test_steps}
@@ -53,7 +52,8 @@ prompt_template = ChatPromptTemplate(
             - Optimize for performance and readability.
             - Set appropriate timeouts for actions based on their complexity.
             - Use a default timeout of 10 seconds for all actions unless specified otherwise.
-            - Ensure the test cases run in headless mode.
+            - Ensure the test cases run in headfull mode.
+            - Take the screenshots of the validation element wait till the element loads and store in png format.
             """,
         ),
         MessagesPlaceholder("messages"),
@@ -86,6 +86,7 @@ error_prompt = ChatPromptTemplate(
             - Set appropriate timeouts for actions based on their complexity.
             - Use a default timeout of 10 seconds for all actions unless specified otherwise.
             - Ensure the test cases run in headless mode.
+            - Take the screenshots of the validation element and store in png format.
             """,
         )
     ]
