@@ -18,6 +18,6 @@ def retrieve_examples(query: str, examples_dir: str = "examples") -> list:
         if filename.endswith(".py"):
             with open(os.path.join(examples_dir, filename), "r") as file:
                 content = file.read()
-                if query.lower() in content.lower():
-                    examples.append(content)
+                examples.append(content)
+
     return examples
