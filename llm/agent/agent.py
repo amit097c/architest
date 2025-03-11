@@ -13,15 +13,19 @@ from agent.utils.nodes import (
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Load environment variables from .env file
-load_dotenv()
+if not load_dotenv():
+    raise RuntimeError("Failed to load environment variables from .env file")
 
 # Initialize Azure OpenAI LLM
-llm = AzureChatOpenAI(
-    deployment_name=os.getenv("OPENAI_API_DEPLOYMENT"),
-    model=os.getenv("OPENAI_API_MODEL"),
-    temperature=0.2,
-    max_tokens=1000,
-)
+try:
+    llm = AzureChatOpenAI(
+        deployment_name=os.getenv("OPENAI_API_DEPLOYMENT"),
+        model=os.getenv("OPENAI_API_MODEL"),
+        temperature=0.2,
+        max_tokens=1000,
+    )
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Azure OpenAI LLM: {str(e)}")
 
 # Define a new graph
 workflow = StateGraph(CustomState)
@@ -110,5 +114,8 @@ workflow.add_conditional_edges(
 workflow.add_edge("retry", "execute")
 
 # Compile the workflow
-config = {"memory": memory_saver}
-graph = workflow.compile()
+try:
+    config = {"memory": memory_saver}
+    graph = workflow.compile()
+except Exception as e:
+    raise RuntimeError(f"Failed to compile workflow: {str(e)}")
