@@ -1,3 +1,4 @@
 **/.env
 __pycache__/
 extracted_files/
+.DS_Store
