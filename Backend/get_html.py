@@ -11,9 +11,10 @@ def get_html(url):
     
     try:
         options = Options()
-        options.headless = True  
+        options.add_argument("--headless")
         options.add_argument("--ignore-certificate-errors")
         options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-dev-shm-usage")
 
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(15)
