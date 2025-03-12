@@ -100,9 +100,41 @@ from playwright.sync_api import sync_playwright
             state["messages"].append(
                 {"role": "system", "content": "Script executed successfully"}
             )
-            state["has_errors"] = False
+        
+        modified_script_content = script_content.replace(
+            "(headless=True)", '(headless=False, channel="chrome")'
+        ).replace(
+            "(headless=False)", '(headless=False, channel="chrome")'
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as chrome_f:
+            chrome_f.write(modified_script_content)
+            chrome_temp_path = chrome_f.name
+
+        print("\n=== Modified Script for Chrome Execution ===")
+        print(modified_script_content)
+        print("=====================\n")
+
+        print("\nRunning Playwright test in Chrome for stability check (Headless=False)...")
+        chrome_process = subprocess.run(["python", chrome_temp_path], capture_output=True, text=True)
+
+        if chrome_process.returncode != 0:
+            print("\nChrome Stability Test Failed:")
+            print("==================================\n")
+            print(chrome_process.stderr)
+            state["messages"].append({"role": "system", "content": "Chrome execution failed, marking as unstable."})
+            state["stability_check_passed"] = False
+        else:
+            print("\nChrome Execution Passed! Test is stable.")
+            print("==================================\n")
+            state["messages"].append({"role": "system", "content": "Chrome execution passed, test is stable."})
+            state["stability_check_passed"] = True
+        
+        state["has_errors"] = False
+
     finally:
         os.unlink(temp_path)
+        os.unlink(chrome_temp_path)
     return state
 
 
