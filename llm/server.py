@@ -19,7 +19,6 @@ async def get():
 async def chat(request: Request):
     try:
         data = await request.json()
-        print(f"data: {data}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
 
@@ -41,7 +40,6 @@ async def chat(request: Request):
         "error_message": None,
     }
 
-    # print("html_content:", data.get("html_content", ""))
 
     config = {"configurable": {"thread_id": "abc123"}}
 

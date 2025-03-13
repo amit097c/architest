@@ -2,7 +2,6 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import requests
-import os
 from get_html import get_html
 from clean_html import clean_html_for_tests
 from html_processor import HTMLProcessor
@@ -23,9 +22,6 @@ async def send_test(request: TestRequest):
     cleaned_html = clean_html_for_tests(html_content)
     
     processed_html = html_processor.process_html(cleaned_html)
-
-    #if not processed_html:
-    #    raise HTTPException(status_code=500, detail="Failed to extract and process HTML from the provided URL.")
 
     # Prepare the payload to send to the llm server
     payload = {

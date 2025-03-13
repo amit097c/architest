@@ -2,19 +2,16 @@ import requests
 import tempfile
 import subprocess
 import os
-from agent.utils.tools import clean_script_response, retrieve_examples
+from agent.utils.tools import clean_script_response
 
 
 def invoke_llm(state, llm, prompt_template):
-    # query = f"Generate Playwright test for {state['test_steps']}"
-    # examples = retrieve_examples(query)
 
     prompt = prompt_template.invoke(
         {
             "test_steps": state["test_steps"],
             "html_content": state["html_content"],
             "url": state["url"],
-            # "examples": "\n\n".join(examples),
             "messages": state["messages"],
         }
     )
@@ -60,25 +57,6 @@ from playwright.sync_api import sync_playwright
             text=True,
             env=os.environ.copy()  # Pass current environment
         )
-
-        print("Process", process)
-        print("Return code:", process.returncode)
-        print("Output:", process.stdout)
-        print("Errors:", process.stderr)
-        
-        # Check for common Playwright error patterns in both stdout and stderr
-        # error_patterns = [
-        #     "Error:", 
-        #     "TimeoutError", 
-        #     "ElementHandle.click:",
-        #     "Failed to find element",
-        #     "Evaluation failed",
-        #     "FAILED",
-        #     "failed"
-        # ]
-        
-        # has_error = any(pattern in process.stdout or pattern in process.stderr 
-        #                for pattern in error_patterns)
         
         if process.returncode != 0:
             error_output = process.stderr if process.stderr else process.stdout
@@ -107,41 +85,9 @@ from playwright.sync_api import sync_playwright
             state["messages"].append({"role": "system", "content": stability_message})
             state["stability_check_passed"] = stability_check
             state["has_errors"] = False
-
-        '''modified_script_content = script_content.replace(
-            "(headless=True)", '(headless=False, channel="chrome")'
-        ).replace(
-            "(headless=False)", '(headless=False, channel="chrome")'
-        )
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as chrome_f:
-            chrome_f.write(modified_script_content)
-            chrome_temp_path = chrome_f.name
-
-        print("\n=== Modified Script for Chrome Execution ===")
-        print(modified_script_content)
-        print("=====================\n")
-
-        print("\nRunning Playwright test in Chrome for stability check (Headless=False)...")
-        chrome_process = subprocess.run(["python", chrome_temp_path], capture_output=True, text=True)
-
-        if chrome_process.returncode != 0:
-            print("\nChrome Stability Test Failed:")
-            print("==================================\n")
-            print(chrome_process.stderr)
-            state["messages"].append({"role": "system", "content": "Chrome execution failed, marking as unstable."})
-            state["stability_check_passed"] = False
-        else:
-            print("\nChrome Execution Passed! Test is stable.")
-            print("==================================\n")
-            state["messages"].append({"role": "system", "content": "Chrome execution passed, test is stable."})
-            state["stability_check_passed"] = True'''
-        
-            
-
+                    
     finally:
         os.unlink(temp_path)
-        #os.unlink(chrome_temp_path)
     return state
 
 def execute_chrome_script(script_content):

@@ -58,8 +58,6 @@ prompt_template = ChatPromptTemplate(
             - Set appropriate timeouts for actions based on their complexity.
             - Use a default timeout of 10 seconds for all actions unless specified otherwise.
             - Ensure the test cases run in headless mode.
-            - Ensure the test cases run in headfull mode.
-            - Take the screenshots using screenshot function of the validation element wait till atmost 10 seconds until the element is visible and store in png format.
             """,
         ),
         MessagesPlaceholder("messages"),
