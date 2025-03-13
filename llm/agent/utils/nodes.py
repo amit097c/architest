@@ -100,8 +100,15 @@ from playwright.sync_api import sync_playwright
             state["messages"].append(
                 {"role": "system", "content": "Script executed successfully"}
             )
-        
-        modified_script_content = script_content.replace(
+        #chrome_stability_test(script_content,state)
+
+            # Execute script in Chrome
+            stability_check, stability_message = execute_chrome_script(script_content)
+            state["messages"].append({"role": "system", "content": stability_message})
+            state["stability_check_passed"] = stability_check
+            state["has_errors"] = False
+
+        '''modified_script_content = script_content.replace(
             "(headless=True)", '(headless=False, channel="chrome")'
         ).replace(
             "(headless=False)", '(headless=False, channel="chrome")'
@@ -128,15 +135,39 @@ from playwright.sync_api import sync_playwright
             print("\nChrome Execution Passed! Test is stable.")
             print("==================================\n")
             state["messages"].append({"role": "system", "content": "Chrome execution passed, test is stable."})
-            state["stability_check_passed"] = True
+            state["stability_check_passed"] = True'''
         
-        state["has_errors"] = False
+            
 
     finally:
         os.unlink(temp_path)
-        os.unlink(chrome_temp_path)
+        #os.unlink(chrome_temp_path)
     return state
 
+def execute_chrome_script(script_content):
+    """Executes the given Playwright script in Chrome with headless mode off."""
+    modified_script_content = script_content.replace(
+        "(headless=True)", '(headless=False, channel="chrome")'
+    ).replace(
+        "(headless=False)", '(headless=False, channel="chrome")'
+    )
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as chrome_f:
+        chrome_f.write(modified_script_content)
+        chrome_temp_path = chrome_f.name
+    
+    try:
+        print("Running Playwright test in Chrome for stability check (Headless=False)...")
+        chrome_process = subprocess.run(["python", chrome_temp_path], capture_output=True, text=True)
+
+        if chrome_process.returncode != 0:
+            print("Chrome Stability Test Failed, Test is unstable due to :\n%s", chrome_process.stderr)
+            return False, chrome_process.stderr
+        else:
+            print("Chrome Execution Passed! Test is stable.")
+            return True, "Chrome execution passed."
+    finally:
+        os.unlink(chrome_temp_path)
 
 def handle_errors(state):
     return "retry" if state.get("has_errors", False) else "success"

@@ -19,6 +19,7 @@ async def get():
 async def chat(request: Request):
     try:
         data = await request.json()
+        print(f"data: {data}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
 
