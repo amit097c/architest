@@ -40,11 +40,14 @@ async def chat(request: Request):
         "error_message": None,
     }
 
-
     config = {"configurable": {"thread_id": "abc123"}}
 
     try:
-        output = graph.invoke(state_update, config)
+        # Stream data and print it in real time
+        for chunk in graph.stream(state_update, config, stream_mode="custom"):
+            print(chunk)  # Print received data
+
+        return {"status": "Streaming complete"}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Graph invocation failed: {str(e)}"

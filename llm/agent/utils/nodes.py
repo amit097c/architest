@@ -3,10 +3,12 @@ import tempfile
 import subprocess
 import os
 from agent.utils.tools import clean_script_response
+from langgraph.types import StreamWriter
 
 
-def invoke_llm(state, llm, prompt_template):
-
+def invoke_llm(state, llm, prompt_template, writer: StreamWriter):
+    writer({"custom_key": "Generating..."})
+    
     prompt = prompt_template.invoke(
         {
             "test_steps": state["test_steps"],
@@ -93,9 +95,9 @@ from playwright.sync_api import sync_playwright
 def execute_chrome_script(script_content):
     """Executes the given Playwright script in Chrome with headless mode off."""
     modified_script_content = script_content.replace(
-        "(headless=True)", '(headless=False, channel="chrome")'
+        "(headless=True)", '(headless=True, channel="chrome")'
     ).replace(
-        "(headless=False)", '(headless=False, channel="chrome")'
+        "(headless=False)", '(headless=True, channel="chrome")'
     )
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as chrome_f:
@@ -119,7 +121,8 @@ def handle_errors(state):
     return "retry" if state.get("has_errors", False) else "success"
 
 
-def retry_with_errors(state, llm, error_prompt):
+def retry_with_errors(state, llm, error_prompt, writer: StreamWriter):
+    writer({"custom_key": "Retrying..."})
     print("\n=== Retrying with error ===")
     print(f"Error message: {state['error_message']}")
     print("========================\n")

@@ -99,9 +99,9 @@ error_prompt = ChatPromptTemplate(
 )
 
 # Define nodes
-workflow.add_node("home", lambda state: invoke_llm(state, llm, prompt_template))
+workflow.add_node("home", lambda state, writer: invoke_llm(state, llm, prompt_template, writer))
 workflow.add_node("execute", execute_playwright_script)
-workflow.add_node("retry", lambda state: retry_with_errors(state, llm, error_prompt))
+workflow.add_node("retry", lambda state, writer: retry_with_errors(state, llm, error_prompt, writer))
 workflow.add_node("clear", clear_memory)
 
 # Define the flow
