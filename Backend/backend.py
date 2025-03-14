@@ -1,3 +1,19 @@
+"""
+backend.py
+
+This FastAPI backend handles:
+- Extracting HTML from a given URL (`get_html.py`).
+- Cleaning and processing the extracted HTML (`clean_html.py` and `html_processor.py`).
+- Sending the processed data to an LLM-based test script generator.
+- Streaming real-time test execution results using SSE.
+
+Key Features:
+- `/send_test`: Extracts, cleans, processes, and sends HTML to LLM for test generation.
+- `/stream`: Streams live test execution results to the frontend.
+- Uses `aiohttp` for asynchronous requests and `sse-starlette` for Server-Sent Events (SSE).
+
+"""
+
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
