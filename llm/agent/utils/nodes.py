@@ -7,7 +7,7 @@ from langgraph.types import StreamWriter
 
 
 def invoke_llm(state, llm, prompt_template, writer: StreamWriter):
-    writer({"custom_key": "Generating..."})
+    writer({"type": "info", "message": "Generating Script"})
     
     prompt = prompt_template.invoke(
         {
@@ -22,7 +22,7 @@ def invoke_llm(state, llm, prompt_template, writer: StreamWriter):
     return {"messages": [{"role": "assistant", "content": cleaned_content}]}
 
 
-def execute_playwright_script(state):
+def execute_playwright_script(state, writer: StreamWriter):
     script_content = state["messages"][-1].content
     print("\n=== Generated Script ===")
     print(script_content)
@@ -51,6 +51,8 @@ from playwright.sync_api import sync_playwright
         subprocess.run(["pip", "install", "playwright"], check=True, capture_output=True)
         subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
         
+        writer({"type": "info", "message": "Executing test script"})
+        
         # Run the script with shell=True to ensure proper execution
         process = subprocess.run(
             f"pytest {temp_path}", 
@@ -62,6 +64,9 @@ from playwright.sync_api import sync_playwright
         
         if process.returncode != 0:
             error_output = process.stderr if process.stderr else process.stdout
+            
+            writer({"type": "error", "message": "Test execution failed"})
+            
             print("\n=== Execution Error ===")
             print(error_output)
             print("=====================\n")
@@ -74,6 +79,8 @@ from playwright.sync_api import sync_playwright
             state["has_errors"] = True
             state["error_message"] = error_output
         else:
+            writer({"type": "success", "message": "Tests executed successfully"})
+            
             print("\n=== Success ===")
             print("Script executed without errors")
             print("=============\n")
@@ -122,7 +129,8 @@ def handle_errors(state):
 
 
 def retry_with_errors(state, llm, error_prompt, writer: StreamWriter):
-    writer({"custom_key": "Retrying..."})
+    writer({"type": "info", "message": "Refining test script"})
+    
     print("\n=== Retrying with error ===")
     print(f"Error message: {state['error_message']}")
     print("========================\n")

@@ -55,9 +55,16 @@ const ArchiTest: React.FC = () => {
   useEffect(() => {
     const eventSource = new EventSource("http://localhost:8001/stream");
 
+    eventSource.onopen = () => {
+      console.log("Connection established to /stream");
+    };
+
     eventSource.onmessage = (event) => {
-      const newEvent = event.data;
-      console.log(newEvent);
+        // Replace single quotes with double quotes
+      const fixedData = event.data.replace(/'/g, '"');
+      const newEvent = JSON.parse(fixedData);
+      console.log(newEvent.type);
+      addStatusEvent(newEvent.type, newEvent.message);
     };
 
     eventSource.onerror = (error) => {
@@ -83,6 +90,8 @@ const ArchiTest: React.FC = () => {
       message,
       details
     };
+
+    console.log(newEvent);
 
     setStatusEvents(prev => [newEvent, ...prev]);
   };

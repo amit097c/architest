@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -65,6 +65,25 @@ const StatusSection: React.FC<StatusSectionProps> = ({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({     
+        behavior: 'smooth', // Optional: smooth scroll animation
+        block: 'end',
+      });
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [events]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -123,14 +142,14 @@ const StatusSection: React.FC<StatusSectionProps> = ({
         
         <div className="mt-3">
           <div className="text-sm font-medium mb-2">Event Log</div>
-          <ScrollArea className="h-48 rounded-md border p-2">
+          <ScrollArea className="h-48 rounded-md border p-2" ref={scrollRef}>
             {events.length === 0 ? (
               <div className="text-center text-muted-foreground p-4">
                 No events recorded yet
               </div>
             ) : (
               <div className="space-y-2">
-                {events.map((event) => (
+                {events.slice(0).reverse().map((event) => (
                   <div key={event.id} className="text-xs border-l-2 pl-3 py-1" 
                     style={{ 
                       borderColor: 

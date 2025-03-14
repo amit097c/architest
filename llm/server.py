@@ -1,8 +1,14 @@
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
+import json
+import asyncio
 from agent.agent import graph
 
 app = FastAPI()
+
+# Global queue to hold the streaming data
+data_queue = asyncio.Queue()
 
 
 # Define the request body model using Pydantic
@@ -10,13 +16,8 @@ class PromptReq(BaseModel):
     prompt: str
 
 
-@app.get("/")
-async def get():
-    return {"message": "Hello, World!"}
-
-
-@app.post("/")
-async def chat(request: Request):
+@app.post("/generate_tests")
+async def generate_tests(request: Request):
     try:
         data = await request.json()
     except Exception as e:
@@ -42,18 +43,32 @@ async def chat(request: Request):
 
     config = {"configurable": {"thread_id": "abc123"}}
 
+    # Start the test generation process
     try:
-        # Stream data and print it in real time
-        for chunk in graph.stream(state_update, config, stream_mode="custom"):
-            print(chunk)  # Print received data
-
-        return {"status": "Streaming complete"}
+        print("Starting test generation...")
+        # Process the stream and push updates to the queue
+        async for chunk in graph.astream(state_update, config, stream_mode="custom"):
+            # Add each chunk of data to the global queue
+            await data_queue.put(chunk)
+            print(f"Added to queue: {chunk}")
+        return {"status": "Test generation started successfully"}
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Graph invocation failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
 
-    if not output["messages"]:
-        raise HTTPException(status_code=500, detail="No messages in output")
 
-    return {"message": output["messages"][-1].content}
+# SSE endpoint to stream test results
+@app.get("/stream_test_results")
+async def stream_test_results():
+    async def event_publisher():
+        try:
+            while True:
+                # Wait for new data in the queue
+                print("Waiting for data...")
+                chunk = await data_queue.get()
+                print(f"Sending chunk: {chunk}")
+                # Send data as SSE
+                yield f"{json.dumps(chunk)}\n\n"
+        except Exception as e:
+            yield f"{json.dumps({'error': str(e)})}\n\n"
+
+    return EventSourceResponse(event_publisher())
