@@ -119,13 +119,15 @@ async def stream():
                         json_data = chunk[6:].strip()  # Remove "data: " prefix
                     else:
                         json_data = chunk  # Fallback in case prefix is missing
-
+                    # {"type": "info", "message": "Generating script"}
                     # Try parsing the JSON data
+                    
                     try:
                         data = json.loads(json_data)  # Parse the chunk as JSON
                         print("DATA:")
                         print(data)
-                        yield {"event": "message", "data": data}  # Send it as SSE event
+                        message = json.dumps(data)
+                        yield {"event": "message", "data": message}  # Send it as SSE event
                     except json.JSONDecodeError as e:
                         print(f"JSON decode error: {e}, Raw chunk: {json_data}")
 

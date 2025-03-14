@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from 'axios';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { CheckCircle, AlertCircle, Play, RefreshCw, Code, Globe, FileText, Save, Copy, Download } from "lucide-react";
+import { CheckCircle, AlertCircle, Play, RefreshCw, Globe, FileText, Save, Copy, Download } from "lucide-react";
 import StatusSection from "./StatusSection";
-// Uncomment when connecting to real API
-// import { architestService } from '../services/architestService';
 
 // Types
 type TestStatus = "idle" | "generating" | "running" | "passed" | "failed" | "refining";
@@ -48,8 +45,8 @@ const ArchiTest: React.FC = () => {
 
   // Status tracking
   const [statusEvents, setStatusEvents] = useState<StatusEvent[]>([]);
-  const [startTime, setStartTime] = useState<Date | undefined>(undefined);
-  const [endTime, setEndTime] = useState<Date | undefined>(undefined);
+  const [duration, setDuration] = useState(0);
+  const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const eventSource = new EventSource("http://localhost:8001/stream");
@@ -59,10 +56,11 @@ const ArchiTest: React.FC = () => {
     };
 
     eventSource.onmessage = (event) => {
-        // Replace single quotes with double quotes
+      console.log(event);
+      // Replace single quotes with double quotes (this a hack for now)
       const fixedData = event.data.replace(/'/g, '"');
       const newEvent = JSON.parse(fixedData);
-      console.log(newEvent.type);
+      console.log(newEvent);
 
       // Generating Script
       // Refining test script
@@ -71,17 +69,17 @@ const ArchiTest: React.FC = () => {
       // Tests executed successfully 
       // setStatus("passed");
 
-      if (newEvent.type === "Generating Script") {
-        // Set start time
-        setStatus("generating");
-      } else if (newEvent.type === "Refining test script") {
+      let details;
+
+      if (newEvent.message === "Refining test script") {
         setIterations(prev => prev + 1);
         setStatus("refining");
       }
-      else if (newEvent.type === "Executing test script") {
+      else if (newEvent.message === "Executing test script") {
+        details = `Framework: ${framework}`;
         setStatus("running");
       }
-      else if (newEvent.type === "Test execution failed") {
+      else if (newEvent.message === "Test execution failed") {
         // placeholder
         const errorMsg = "Unable to locate element: .results-count";
         setResults({
@@ -91,7 +89,8 @@ const ArchiTest: React.FC = () => {
         });
         setStatus("failed");
       }
-      else if (newEvent.type === "Tests executed successfully") {
+      else if (newEvent.message === "Tests executed successfully") {
+        details = "All test assertions passed";
         setResults({
           status: "passed",
           message: "Tests passed!",
@@ -99,7 +98,11 @@ const ArchiTest: React.FC = () => {
         setStatus("passed");
       }
 
-      addStatusEvent(newEvent.type, newEvent.message);
+      if (newEvent.type === 'script') {
+        console.log(newEvent.message);
+      }
+
+      addStatusEvent(newEvent.type, newEvent.message, details);
     };
 
     eventSource.onerror = (error) => {
@@ -138,8 +141,7 @@ const ArchiTest: React.FC = () => {
     setResults(null);
     setIterations(0);
     setStatusEvents([]);
-    setStartTime(undefined);
-    setEndTime(undefined);
+    setDuration(0);
   };
 
   // Mock function to simulate test script generation
@@ -147,9 +149,21 @@ const ArchiTest: React.FC = () => {
     // Reset previous test data
     resetTest();
 
-    // Set start time
-    const start = new Date();
-    setStartTime(start);
+    // Initialize time tracking
+    const startTime = new Date();
+    console.log("Timer started at:", startTime);
+
+    // Start real-time stopwatch that updates the UI
+    const intervalId = setInterval(() => {
+      const currentTime = new Date();
+      const elapsedSeconds = (currentTime.getTime() - startTime.getTime()) / 1000;
+      console.log("Timer tick, elapsed seconds:", elapsedSeconds);
+      setDuration(elapsedSeconds);
+    }, 100);
+
+    // Store the interval ID in the ref
+    intervalIdRef.current = intervalId;
+    setStatus("generating");
 
     axios.post('http://localhost:8001/send_test', {
       url,
@@ -160,90 +174,24 @@ const ArchiTest: React.FC = () => {
     })
     .catch(error => {
       console.error('Error:', error);
-    });
-
-    setEndTime(new Date());
+    }).finally(() => {
+      // Stop the timer using the ref
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
     
-//     // Simulate API call delay
-//     setTimeout(() => {
-//       const sampleScript = `import { test, expect } from '@playwright/test';
+      // Set final duration
+      const endTime = new Date();
+      const finalDuration = (endTime.getTime() - startTime.getTime()) / 1000;
+      setDuration(finalDuration);
+      
+      setStatus("idle");
 
-// test('${testSteps.split('\n')[0]}', async ({ page }) => {
-//   // Navigate to the page
-//   await page.goto('${url}');
-  
-//   // Your test steps
-//   const searchInput = page.locator('[aria-label="Search"]');
-//   await expect(searchInput).toBeVisible();
-//   await searchInput.fill('Automated Testing');
-//   await searchInput.press('Enter');
-  
-//   // Verify results appear
-//   await expect(page.locator('.results-container')).toBeVisible();
-//   await expect(page.locator('.results-count')).toContainText('results');
-// });`;
-
-//     //   setTestScript(sampleScript);
-//     //   addStatusEvent("success", "Test script generated successfully");
-//     //   setStatus("running");
-//     //   addStatusEvent("info", "Executing test script", `Framework: ${framework}`);
-
-//     //   // Simulate test running
-//     //   setTimeout(() => {
-//     //     const passTest = Math.random() > 0.3;
-
-//     //     if (passTest) {
-//     //       setStatus("passed");
-//     //       setResults({
-//     //         status: "passed",
-//     //         message: "All tests have passed successfully!",
-//     //         iterations: iterations + 1
-//     //       });
-//     //       addStatusEvent("success", "Tests executed successfully", "All test assertions passed");
-//     //       setEndTime(new Date());
-//     //     } else {
-//     //       setStatus("failed");
-//     //       const errorMsg = "Unable to locate element: .results-count";
-//     //       setResults({
-//     //         status: "failed",
-//     //         message: "Test failed to execute correctly",
-//     //         errorDetails: errorMsg,
-//     //         iterations: iterations + 1
-//     //       });
-//     //       addStatusEvent("error", "Test execution failed", errorMsg);
-
-//     //       // Simulate refining
-//     //       setStatus("refining");
-//     //       addStatusEvent("info", "Refining test script", "Attempting to fix element selector");
-
-//     //       setTimeout(() => {
-//     //         setIterations(prev => prev + 1);
-//     //         const refinedScript = sampleScript.replace(
-//     //           ".results-count",
-//     //           ".search-results-count"
-//     //         );
-//     //         setTestScript(refinedScript);
-//     //         addStatusEvent("info", "Script refinement complete", "Updated element selector");
-
-//     //         // Run the refined script
-//     //         addStatusEvent("info", "Executing refined test script");
-//     //         setTimeout(() => {
-//     //           setStatus("passed");
-//     //           setResults({
-//     //             status: "passed",
-//     //             message: "Tests passed after refinement!",
-//     //             iterations: iterations + 2
-//     //           });
-//     //           addStatusEvent("success", "Refined test executed successfully");
-//     //           setEndTime(new Date());
-//     //         }, 1500);
-//     //       }, 2000);
-//     //     }
-//     //   }, 2000);
-//     // }, 2000);
+      console.log(`Final duration: ${finalDuration} seconds`);
+    });
   };
 
-  // Status badge component
   const StatusBadge = () => {
     switch (status) {
       case "idle":
@@ -351,7 +299,7 @@ const ArchiTest: React.FC = () => {
             <Button
               className="w-full"
               onClick={generateTestScript}
-              disabled={!url || !testSteps || status === "generating" || status === "running" || status === "refining"}
+              disabled={!url || !testSteps || status !== "idle"}
             >
               {status === "idle" ? (
                 <>
@@ -364,7 +312,8 @@ const ArchiTest: React.FC = () => {
               {status === "generating" ? "Generating..." :
                 status === "running" ? "Running..." :
                   status === "refining" ? "Refining..." :
-                    "Generate & Run Tests"}
+                  status === "passed" ? "Tests Passed" :
+                  status === "failed" ? "Tests Failed" : ""}
             </Button>
           </CardFooter>
         </Card>
@@ -425,8 +374,7 @@ const ArchiTest: React.FC = () => {
             currentStatus={status}
             events={statusEvents}
             iterations={iterations}
-            startTime={startTime}
-            endTime={endTime}
+            duration={duration}
           />
 
           {/* Test Results */}

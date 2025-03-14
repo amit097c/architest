@@ -18,31 +18,24 @@ interface StatusSectionProps {
   currentStatus: string;
   events: StatusEvent[];
   iterations: number;
-  startTime?: Date;
-  endTime?: Date;
+  duration?: number;
 }
 
 const StatusSection: React.FC<StatusSectionProps> = ({
   currentStatus,
   events,
   iterations,
-  startTime,
-  endTime
+  duration
 }) => {
   // Calculate duration if start and end times are available
   const getDuration = () => {
-    if (!startTime) return "Not started";
+    if (duration === undefined) return "Not started";
     
-    const end = endTime || new Date();
-    const durationMs = end.getTime() - startTime.getTime();
-    
-    // Format as minutes and seconds
-    const minutes = Math.floor(durationMs / 60000);
-    const seconds = ((durationMs % 60000) / 1000).toFixed(1);
-    
-    return minutes > 0 
-      ? `${minutes}m ${seconds}s` 
-      : `${seconds}s`;
+    // Since duration is already in seconds, not milliseconds
+    const minutes = Math.floor(duration / 60);
+    const seconds = (duration % 60).toFixed(1);
+  
+    return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
   };
   
   // Get status icon based on event type

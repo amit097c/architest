@@ -2,6 +2,7 @@ import requests
 import tempfile
 import subprocess
 import os
+import json
 from agent.utils.tools import clean_script_response
 from langgraph.types import StreamWriter
 
@@ -80,7 +81,7 @@ from playwright.sync_api import sync_playwright
             state["error_message"] = error_output
         else:
             writer({"type": "success", "message": "Tests executed successfully"})
-            
+            writer({"type": "script", "message": script_content})
             print("\n=== Success ===")
             print("Script executed without errors")
             print("=============\n")
