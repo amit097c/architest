@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from 'axios';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -50,8 +51,6 @@ const ArchiTest: React.FC = () => {
   const [startTime, setStartTime] = useState<Date | undefined>(undefined);
   const [endTime, setEndTime] = useState<Date | undefined>(undefined);
 
-  const [events, setEvents] = useState([]);
-
   useEffect(() => {
     const eventSource = new EventSource("http://localhost:8001/stream");
 
@@ -64,6 +63,42 @@ const ArchiTest: React.FC = () => {
       const fixedData = event.data.replace(/'/g, '"');
       const newEvent = JSON.parse(fixedData);
       console.log(newEvent.type);
+
+      // Generating Script
+      // Refining test script
+      // Executing test script
+      // Test execution failed
+      // Tests executed successfully 
+      // setStatus("passed");
+
+      if (newEvent.type === "Generating Script") {
+        // Set start time
+        setStatus("generating");
+      } else if (newEvent.type === "Refining test script") {
+        setIterations(prev => prev + 1);
+        setStatus("refining");
+      }
+      else if (newEvent.type === "Executing test script") {
+        setStatus("running");
+      }
+      else if (newEvent.type === "Test execution failed") {
+        // placeholder
+        const errorMsg = "Unable to locate element: .results-count";
+        setResults({
+          status: "failed",
+          message: "Test failed to execute correctly",
+          errorDetails: errorMsg,
+        });
+        setStatus("failed");
+      }
+      else if (newEvent.type === "Tests executed successfully") {
+        setResults({
+          status: "passed",
+          message: "Tests passed!",
+        });
+        setStatus("passed");
+      }
+
       addStatusEvent(newEvent.type, newEvent.message);
     };
 
@@ -116,87 +151,96 @@ const ArchiTest: React.FC = () => {
     const start = new Date();
     setStartTime(start);
 
-    // Update status
-    setStatus("generating");
-    addStatusEvent("info", "Starting test script generation", `URL: ${url}`);
+    axios.post('http://localhost:8001/send_test', {
+      url,
+      test_steps: testSteps, // Ensure test_steps matches API expectations
+    })
+    .then(response => {
+      console.log('Success:', response.data);
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
 
-    // Simulate API call delay
-    setTimeout(() => {
-      const sampleScript = `import { test, expect } from '@playwright/test';
+    setEndTime(new Date());
+    
+//     // Simulate API call delay
+//     setTimeout(() => {
+//       const sampleScript = `import { test, expect } from '@playwright/test';
 
-test('${testSteps.split('\n')[0]}', async ({ page }) => {
-  // Navigate to the page
-  await page.goto('${url}');
+// test('${testSteps.split('\n')[0]}', async ({ page }) => {
+//   // Navigate to the page
+//   await page.goto('${url}');
   
-  // Your test steps
-  const searchInput = page.locator('[aria-label="Search"]');
-  await expect(searchInput).toBeVisible();
-  await searchInput.fill('Automated Testing');
-  await searchInput.press('Enter');
+//   // Your test steps
+//   const searchInput = page.locator('[aria-label="Search"]');
+//   await expect(searchInput).toBeVisible();
+//   await searchInput.fill('Automated Testing');
+//   await searchInput.press('Enter');
   
-  // Verify results appear
-  await expect(page.locator('.results-container')).toBeVisible();
-  await expect(page.locator('.results-count')).toContainText('results');
-});`;
+//   // Verify results appear
+//   await expect(page.locator('.results-container')).toBeVisible();
+//   await expect(page.locator('.results-count')).toContainText('results');
+// });`;
 
-      setTestScript(sampleScript);
-      addStatusEvent("success", "Test script generated successfully");
-      setStatus("running");
-      addStatusEvent("info", "Executing test script", `Framework: ${framework}`);
+//     //   setTestScript(sampleScript);
+//     //   addStatusEvent("success", "Test script generated successfully");
+//     //   setStatus("running");
+//     //   addStatusEvent("info", "Executing test script", `Framework: ${framework}`);
 
-      // Simulate test running
-      setTimeout(() => {
-        const passTest = Math.random() > 0.3;
+//     //   // Simulate test running
+//     //   setTimeout(() => {
+//     //     const passTest = Math.random() > 0.3;
 
-        if (passTest) {
-          setStatus("passed");
-          setResults({
-            status: "passed",
-            message: "All tests have passed successfully!",
-            iterations: iterations + 1
-          });
-          addStatusEvent("success", "Tests executed successfully", "All test assertions passed");
-          setEndTime(new Date());
-        } else {
-          setStatus("failed");
-          const errorMsg = "Unable to locate element: .results-count";
-          setResults({
-            status: "failed",
-            message: "Test failed to execute correctly",
-            errorDetails: errorMsg,
-            iterations: iterations + 1
-          });
-          addStatusEvent("error", "Test execution failed", errorMsg);
+//     //     if (passTest) {
+//     //       setStatus("passed");
+//     //       setResults({
+//     //         status: "passed",
+//     //         message: "All tests have passed successfully!",
+//     //         iterations: iterations + 1
+//     //       });
+//     //       addStatusEvent("success", "Tests executed successfully", "All test assertions passed");
+//     //       setEndTime(new Date());
+//     //     } else {
+//     //       setStatus("failed");
+//     //       const errorMsg = "Unable to locate element: .results-count";
+//     //       setResults({
+//     //         status: "failed",
+//     //         message: "Test failed to execute correctly",
+//     //         errorDetails: errorMsg,
+//     //         iterations: iterations + 1
+//     //       });
+//     //       addStatusEvent("error", "Test execution failed", errorMsg);
 
-          // Simulate refining
-          setStatus("refining");
-          addStatusEvent("info", "Refining test script", "Attempting to fix element selector");
+//     //       // Simulate refining
+//     //       setStatus("refining");
+//     //       addStatusEvent("info", "Refining test script", "Attempting to fix element selector");
 
-          setTimeout(() => {
-            setIterations(prev => prev + 1);
-            const refinedScript = sampleScript.replace(
-              ".results-count",
-              ".search-results-count"
-            );
-            setTestScript(refinedScript);
-            addStatusEvent("info", "Script refinement complete", "Updated element selector");
+//     //       setTimeout(() => {
+//     //         setIterations(prev => prev + 1);
+//     //         const refinedScript = sampleScript.replace(
+//     //           ".results-count",
+//     //           ".search-results-count"
+//     //         );
+//     //         setTestScript(refinedScript);
+//     //         addStatusEvent("info", "Script refinement complete", "Updated element selector");
 
-            // Run the refined script
-            addStatusEvent("info", "Executing refined test script");
-            setTimeout(() => {
-              setStatus("passed");
-              setResults({
-                status: "passed",
-                message: "Tests passed after refinement!",
-                iterations: iterations + 2
-              });
-              addStatusEvent("success", "Refined test executed successfully");
-              setEndTime(new Date());
-            }, 1500);
-          }, 2000);
-        }
-      }, 2000);
-    }, 2000);
+//     //         // Run the refined script
+//     //         addStatusEvent("info", "Executing refined test script");
+//     //         setTimeout(() => {
+//     //           setStatus("passed");
+//     //           setResults({
+//     //             status: "passed",
+//     //             message: "Tests passed after refinement!",
+//     //             iterations: iterations + 2
+//     //           });
+//     //           addStatusEvent("success", "Refined test executed successfully");
+//     //           setEndTime(new Date());
+//     //         }, 1500);
+//     //       }, 2000);
+//     //     }
+//     //   }, 2000);
+//     // }, 2000);
   };
 
   // Status badge component

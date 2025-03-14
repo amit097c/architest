@@ -7,7 +7,7 @@ from langgraph.types import StreamWriter
 
 
 def invoke_llm(state, llm, prompt_template, writer: StreamWriter):
-    writer({"type": "info", "message": "Generating Script"})
+    writer({"type": "info", "message": "Generating script"})
     
     prompt = prompt_template.invoke(
         {
