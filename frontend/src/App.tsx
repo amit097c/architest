@@ -56,18 +56,14 @@ const ArchiTest: React.FC = () => {
     };
 
     eventSource.onmessage = (event) => {
-      console.log(event);
-      // Replace single quotes with double quotes (this a hack for now)
-      //const fixedData = event.data.replace(/'/g, '"');
-      const newEvent = JSON.parse(event.data);//fixedData);
-      console.log(newEvent);
+      const newEvent = JSON.parse(event.data);
 
+      // Statuses:
       // Generating Script
       // Refining test script
       // Executing test script
       // Test execution failed
       // Tests executed successfully 
-      // setStatus("passed");
 
       let details;
 
@@ -80,7 +76,7 @@ const ArchiTest: React.FC = () => {
         setStatus("running");
       }
       else if (newEvent.message === "Test execution failed") {
-        // placeholder
+        // placeholder (replace in the future)
         const errorMsg = "Unable to locate element: .results-count";
         setResults({
           status: "failed",
@@ -98,12 +94,12 @@ const ArchiTest: React.FC = () => {
         setStatus("passed");
       }
 
+      // If the event type is script, display the generated test script
       if (newEvent.type === 'script') {
-        //console.log("this newEvent: ",newEvent.message);
         setTestScript(newEvent.message);
+      } else {
+        addStatusEvent(newEvent.type, newEvent.message, details);
       }
-
-      addStatusEvent(newEvent.type, newEvent.message, details);
     };
 
     eventSource.onerror = (error) => {
@@ -160,7 +156,7 @@ const ArchiTest: React.FC = () => {
       const elapsedSeconds = (currentTime.getTime() - startTime.getTime()) / 1000;
       console.log("Timer tick, elapsed seconds:", elapsedSeconds);
       setDuration(elapsedSeconds);
-    }, 1000); // this function runs every second
+    }, 100); // this function runs every second
 
     // Store the interval ID in the ref
     intervalIdRef.current = intervalId;
@@ -329,7 +325,7 @@ const ArchiTest: React.FC = () => {
               <div>
                 <CardTitle>Generated Test Script</CardTitle>
                 <CardDescription>
-                  {iterations > 0 ? `Iteration ${iterations}` : "AI-generated test script based on your inputs"}
+                  AI-generated test script based on your inputs
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
