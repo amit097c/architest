@@ -49,8 +49,8 @@ from playwright.sync_api import sync_playwright
 
     try:
         # Install dependencies in the current Python environment
-        subprocess.run(["pip", "install", "playwright"], check=True, capture_output=True)
-        subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
+        # subprocess.run(["pip", "install", "playwright"], check=True, capture_output=True)
+        # subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
         
         writer({"type": "info", "message": "Executing test script"})
         
