@@ -116,6 +116,7 @@ workflow.add_conditional_edges(
     }
 )
 
+# Add edges for the necessary transitions
 workflow.add_edge("retry", "execute")
 workflow.add_edge("clear", END)
 
