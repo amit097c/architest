@@ -67,13 +67,21 @@ const ArchiTest: React.FC = () => {
 
       let details;
 
-      if (newEvent.message === "Refining test script") {
+      if (newEvent.message.includes("Refining test script")) {
         setIterations(prev => prev + 1);
         setStatus("refining");
       }
       else if (newEvent.message === "Executing test script") {
         details = `Framework: ${framework}`;
         setStatus("running");
+      }
+      else if (newEvent.message.includes("Max refinement attempts reached")) {
+        setStatus("failed");
+        setResults({
+          status: "failed",
+          message: "Unable to generate a valid test script after 10 attempts.",
+          errorDetails: newEvent.details,
+        });
       }
       else if (newEvent.message === "Test execution failed") {
         // placeholder (replace in the future)
@@ -85,6 +93,14 @@ const ArchiTest: React.FC = () => {
         });
         setStatus("failed");
       }
+      // else if (newEvent.type === "error_msg") {
+      //   setResults({
+      //     status: "failed",
+      //     message: "Test failed to execute correctly",
+      //     errorDetails: newEvent.message,
+      //   });
+      //   setStatus("failed");
+      // }
       else if (newEvent.message === "Tests executed successfully") {
         details = "All test assertions passed";
         setResults({

@@ -10,6 +10,7 @@ from agent.utils.nodes import (
     execute_playwright_script,
     handle_errors,
     retry_with_errors,
+    limit_error,
 )
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
@@ -152,12 +153,17 @@ workflow.add_edge("home", "execute")
 workflow.add_conditional_edges(
     "execute", handle_errors, {
         "retry": "retry", 
-        "success": "clear"  # Route to clear instead of END
+        "success": "clear", # Route to clear instead of END
+    }
+)
+# Add edges for the necessary transitions
+workflow.add_conditional_edges(
+    "retry", limit_error, {
+        "retry": "execute",  # Continue retrying if needed
+        "stop": "clear"  # Stop execution when limit is reached
     }
 )
 
-# Add edges for the necessary transitions
-workflow.add_edge("retry", "execute")
 workflow.add_edge("clear", END)
 
 # Compile the workflow

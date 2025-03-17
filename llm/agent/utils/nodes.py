@@ -73,6 +73,7 @@ from playwright.sync_api import sync_playwright
             
             # Send the error message to the frontend
             writer({"type": "error", "message": "Test execution failed"})
+            writer({"type": "script", "message": script_content})
             
             print("\n=== Execution Error ===")
             print(error_output)
@@ -146,37 +147,52 @@ def execute_chrome_script(script_content):
 def handle_errors(state):
     return "retry" if state.get("has_errors", False) else "success"
 
-# Function defined to send a custom prompt to the LLM model if the script execution fails
+def limit_error(state):
+    return "stop" if state.get("stop_execution", False) else "retry"
+
+
 def retry_with_errors(state, llm, error_prompt, writer: StreamWriter):
-    # Send the message to the frontend
-    writer({"type": "info", "message": "Refining test script"})
-    
-    print("\n=== Retrying with error ===")
-    print(f"Error message: {state['error_message']}")
-    print("========================\n")
+    state["retry_count"] = state.get("retry_count", 0) + 1
 
-    prompt = error_prompt.invoke(
-        {
-            "original_script": state["messages"][-2].content,
-            "error_message": state["error_message"],
-            "html_content": state["html_content"],
-            "url": state["url"],
-            "test_steps": state["test_steps"],
-        }
-    )
+    writer({"type": "info", "message": f"Refining test script (Attempt {state['retry_count']}/10)"})
 
-    # Invoke the LLM model with the custom prompt
-    response = llm.invoke(prompt)
-    # get the response and clean it to remove the markdown syntax
-    cleaned_content = clean_script_response(response.content)
+    if state["retry_count"] >= 10:
+        errors = state["messages"][-1].content if state["messages"] else "No script generated."
+        writer({"type": "error", "message": "Max refinement attempts reached. Unable to generate executable script.","details": errors})
 
-    # Return the cleaned content and its state
-    return {
+        print("\nMax retries reached. Stopping further refinements.")
+
+        return {
         **state,
-        "messages": [{"role": "assistant", "content": cleaned_content}],
-        "has_errors": False,
-        "error_message": None,
-    }
+        "messages": [{"role": "system", "content": "Test generation failed. Max retries reached."}],
+        "stop_execution": True,
+        "error_message": "Max retries reached",
+        }
+    
+    else:
+        print("\n=== Retrying with error ===")
+        print(f"Error message: {state['error_message']}")
+        print("========================\n")
+
+        prompt = error_prompt.invoke(
+                {
+                    "original_script": state["messages"][-2].content,
+                    "error_message": state["error_message"],
+                    "html_content": state["html_content"],
+                    "url": state["url"],
+                    "test_steps": state["test_steps"],
+                }
+            )
+
+        response = llm.invoke(prompt)
+        cleaned_content = clean_script_response(response.content)
+
+        return {
+            **state,
+            "messages": [{"role": "assistant", "content": cleaned_content}],
+            "has_errors": False,
+            "error_message": None,
+        }
 
 # Function defined to clear the memory after a succesful script execution
 def clear_memory(state):
