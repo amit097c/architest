@@ -42,7 +42,7 @@ const ArchiTest: React.FC = () => {
   const [iterations, setIterations] = useState<number>(0);
   const [isMultiPage, setIsMultiPage] = useState<boolean>(false);
   const [includeApi, setIncludeApi] = useState<boolean>(false);
-
+  const [triggerEffect, setTriggerEffect] = useState(false);
   // Status tracking
   const [statusEvents, setStatusEvents] = useState<StatusEvent[]>([]);
   const [duration, setDuration] = useState(0);
@@ -58,8 +58,8 @@ const ArchiTest: React.FC = () => {
     eventSource.onmessage = (event) => {
       console.log(event);
       // Replace single quotes with double quotes (this a hack for now)
-      const fixedData = event.data.replace(/'/g, '"');
-      const newEvent = JSON.parse(fixedData);
+      //const fixedData = event.data.replace(/'/g, '"');
+      const newEvent = JSON.parse(event.data);//fixedData);
       console.log(newEvent);
 
       // Generating Script
@@ -99,7 +99,8 @@ const ArchiTest: React.FC = () => {
       }
 
       if (newEvent.type === 'script') {
-        console.log(newEvent.message);
+        //console.log("this newEvent: ",newEvent.message);
+        setTestScript(newEvent.message);
       }
 
       addStatusEvent(newEvent.type, newEvent.message, details);
@@ -113,7 +114,7 @@ const ArchiTest: React.FC = () => {
     return () => {
       eventSource.close();
     };
-  }, []);
+  }, [triggerEffect]);
 
   // Add event to status log
   const addStatusEvent = (
@@ -159,22 +160,24 @@ const ArchiTest: React.FC = () => {
       const elapsedSeconds = (currentTime.getTime() - startTime.getTime()) / 1000;
       console.log("Timer tick, elapsed seconds:", elapsedSeconds);
       setDuration(elapsedSeconds);
-    }, 100);
+    }, 1000); // this function runs every second
 
     // Store the interval ID in the ref
     intervalIdRef.current = intervalId;
     setStatus("generating");
 
-    axios.post('http://localhost:8001/send_test', {
+    (axios.post('http://localhost:8001/send_test', {
       url,
       test_steps: testSteps, // Ensure test_steps matches API expectations
-    })
+    }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);
+      setTriggerEffect(prev => !prev); 
     })
     .catch(error => {
       console.error('Error:', error);
-    }).finally(() => {
+    })
+    .finally(() => {
       // Stop the timer using the ref
       if (intervalIdRef.current) {
         clearInterval(intervalIdRef.current);
