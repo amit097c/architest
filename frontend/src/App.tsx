@@ -370,9 +370,9 @@ const ArchiTest: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-60 w-full rounded-md border">
+              <ScrollArea className="h-80 w-full rounded-md border bg-gray-100">
                 {testScript ? (
-                  <pre className="p-4 text-sm">
+                  <pre className="p-4 text-sm whitespace-pre-wrap break-words overflow-auto font-mono">
                     <code>{testScript}</code>
                   </pre>
                 ) : (
