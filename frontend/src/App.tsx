@@ -341,7 +341,7 @@ const ArchiTest: React.FC = () => {
               <div>
                 <CardTitle>Generated Test Script</CardTitle>
                 <CardDescription>
-                  AI-generated test script based on your inputs
+                  {iterations > 0 ? `Iteration ${iterations}` : "AI-generated test script based on your inputs"}
                 </CardDescription>
               </div>
               <div className="flex space-x-2">
