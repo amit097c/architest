@@ -418,7 +418,7 @@ const ArchiTest: React.FC = () => {
                   <AlertDescription>
                     {results.message}
                     {results.errorDetails && (
-                      <div className="mt-2 p-2 bg-red-50 rounded text-sm">
+                      <div className="mt-2 p-2 bg-red-50 rounded text-sm break-words overflow-hidden max-w-full whitespace-pre-wrap">
                         {results.errorDetails}
                       </div>
                     )}
