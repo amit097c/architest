@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from 'axios';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import InputSection from "@/components/sections/InputSection";
+import OutputSection from "@/components/sections/OutputSection";
+import TestResultsSection from "./components/sections/TestResultsSection";
+import ToolsSection from "@/components/sections/ToolsSection";
+import StatusSection from "./components/sections/StatusSection";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { CheckCircle, AlertCircle, Play, RefreshCw, Globe, FileText, Save, Copy, Download } from "lucide-react";
-import StatusSection from "./StatusSection";
 
 // Types
 type TestStatus = "idle" | "extracting-and-processing-html" | "generating" | "running" | "passed" | "failed" | "refining";
@@ -243,155 +238,35 @@ const ArchiTest: React.FC = () => {
       </header>
 
       <div className="grid gap-6 md:grid-cols-12">
-        {/* Left Column - Input */}
-        <Card className="md:col-span-5">
-          <CardHeader>
-            <CardTitle>Test Configuration</CardTitle>
-            <CardDescription>
-              Provide a URL and test steps to generate automated test scripts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="url" className="text-sm font-medium">Target URL</label>
-              <Input
-                id="url"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-            </div>
+        <div className="md:col-span-5">
+          <InputSection
+            url={url}
+            setUrl={setUrl}
+            testSteps={testSteps}
+            setTestSteps={setTestSteps}
+            framework={framework}
+            setFramework={setFramework}
+            isMultiPage={isMultiPage}
+            setIsMultiPage={setIsMultiPage}
+            includeApi={includeApi}
+            setIncludeApi={setIncludeApi}
+            status={status}
+            generateTestScript={generateTestScript}
+          />
+        </div>
 
-            <div className="space-y-2">
-              <label htmlFor="test-steps" className="text-sm font-medium">Test Steps</label>
-              <Textarea
-                id="test-steps"
-                placeholder="1. Navigate to homepage
-2. Search for 'product'
-3. Verify search results appear
-4. Click on first result
-5. Verify product details page loads"
-                value={testSteps}
-                onChange={(e) => setTestSteps(e.target.value)}
-                rows={8}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="framework" className="text-sm font-medium">Framework</label>
-                <Select
-                  value={framework}
-                  onValueChange={(value: Framework) => setFramework(value)}
-                >
-                  <SelectTrigger id="framework">
-                    <SelectValue placeholder="Select framework" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="playwright">Playwright</SelectItem>
-                    <SelectItem value="cypress">Cypress</SelectItem>
-                    <SelectItem value="selenium">Selenium</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Options</label>
-                <div className="flex space-x-3 pt-2">
-                  <Button
-                    variant={isMultiPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setIsMultiPage(!isMultiPage)}
-                  >
-                    Multi-Page
-                  </Button>
-                  <Button
-                    variant={includeApi ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setIncludeApi(!includeApi)}
-                  >
-                    API Tests
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              className="w-full"
-              onClick={generateTestScript}
-              disabled={!url || !testSteps || status !== "idle"}
-            >
-              {status === "idle" ? (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Generate & Run Tests
-                </>
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              { status === "extracting-and-processing-html" ? "Extracting and processing HTML..." :
-                status === "generating" ? "Generating..." :
-                status === "running" ? "Running..." :
-                status === "refining" ? "Refining..." :
-                status === "passed" ? "Tests Passed" :
-                status === "failed" ? "Tests Failed" : "" }
-            </Button>
-          </CardFooter>
-        </Card>
-
-        {/* Right Column - Output */}
         <div className="md:col-span-7 space-y-6">
-          {/* Test Script Card */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle>Generated Test Script</CardTitle>
-                <CardDescription>
-                  {iterations > 0 ? `Iteration ${iterations}` : "AI-generated test script based on your inputs"}
-                </CardDescription>
-              </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={!testScript}
-                  onClick={() => {
-                    navigator.clipboard.writeText(testScript);
-                    addStatusEvent("info", "Test script copied to clipboard");
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={!testScript}
-                  onClick={() => {
-                    addStatusEvent("info", "Test script saved");
-                    // Implement save functionality here
-                  }}
-                >
-                  <Save className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-80 w-full rounded-md border bg-gray-100">
-                {testScript ? (
-                  <pre className="p-4 text-sm whitespace-pre-wrap break-words overflow-auto font-mono">
-                    <code>{testScript}</code>
-                  </pre>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <p>Your generated test script will appear here</p>
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
+          <OutputSection
+            testScript={testScript}
+            iterations={iterations}
+            addStatusEvent={addStatusEvent}
+          />
 
-          {/* Status Section */}
+          <TestResultsSection 
+            results={results}
+            duration={duration}
+          />
+
           <StatusSection
             currentStatus={status}
             events={statusEvents}
@@ -399,106 +274,7 @@ const ArchiTest: React.FC = () => {
             duration={duration}
           />
 
-          {/* Test Results */}
-          {results && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center">
-                  {results.status === "passed" ? (
-                    <>
-                      <CheckCircle className="mr-2 h-5 w-5 text-green-500" />
-                      <span>Test Results - Passed</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
-                      <span>Test Results - Failed</span>
-                    </>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Alert variant={results.status === "passed" ? "default" : "destructive"}>
-                  <AlertTitle>
-                    {results.status === "passed" ? "Success" : "Error"}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {results.message}
-                    {results.errorDetails && (
-                      <div className="mt-2 p-2 bg-red-50 rounded text-sm break-words overflow-hidden max-w-full whitespace-pre-wrap">
-                        {results.errorDetails}
-                      </div>
-                    )}
-                    {results.iterations && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Tests completed after {results.iterations} iteration{results.iterations !== 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Additional Tools Tabs */}
-          <Tabs defaultValue="execution">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="execution">
-                <Play className="mr-2 h-4 w-4" />
-                Execution
-              </TabsTrigger>
-              <TabsTrigger value="browser">
-                <Globe className="mr-2 h-4 w-4" />
-                Browser
-              </TabsTrigger>
-              <TabsTrigger value="reports">
-                <FileText className="mr-2 h-4 w-4" />
-                Reports
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="execution" className="p-4 border rounded-md mt-2">
-              <h3 className="text-sm font-medium mb-2">Execution Settings</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Select defaultValue="chromium">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Browser" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="chromium">Chromium</SelectItem>
-                    <SelectItem value="firefox">Firefox</SelectItem>
-                    <SelectItem value="webkit">WebKit</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="desktop">
-                  <SelectTrigger>
-                    <SelectValue placeholder="Device" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desktop">Desktop</SelectItem>
-                    <SelectItem value="tablet">Tablet</SelectItem>
-                    <SelectItem value="mobile">Mobile</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-            <TabsContent value="browser" className="p-4 border rounded-md mt-2">
-              <div className="text-center text-muted-foreground p-6">
-                Browser preview will appear here during test execution
-              </div>
-            </TabsContent>
-            <TabsContent value="reports" className="p-4 border rounded-md mt-2">
-              <div className="flex justify-between mb-4">
-                <h3 className="text-sm font-medium">Test Reports</h3>
-                <Button variant="outline" size="sm">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
-              </div>
-              <div className="text-center text-muted-foreground p-6">
-                Test reports will be available after execution
-              </div>
-            </TabsContent>
-          </Tabs>
+          <ToolsSection />
         </div>
       </div>
     </div>

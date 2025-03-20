@@ -65,7 +65,7 @@ const StatusSection: React.FC<StatusSectionProps> = ({
           <CardTitle className="text-lg">Test Execution Status</CardTitle>
           <Badge 
             variant={
-              currentStatus === "passed" ? "success" :
+              currentStatus === "passed" ? "default" :
               currentStatus === "failed" ? "destructive" :
               currentStatus === "generating" || currentStatus === "running" || currentStatus === "refining" ? "outline" :
               "secondary"
