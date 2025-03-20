@@ -13,7 +13,7 @@ import { CheckCircle, AlertCircle, Play, RefreshCw, Globe, FileText, Save, Copy,
 import StatusSection from "./StatusSection";
 
 // Types
-type TestStatus = "idle" | "generating" | "running" | "passed" | "failed" | "refining";
+type TestStatus = "idle" | "extracting-and-processing-html" | "generating" | "running" | "passed" | "failed" | "refining";
 type Framework = "playwright" | "cypress" | "selenium";
 
 interface TestResult {
@@ -59,6 +59,7 @@ const ArchiTest: React.FC = () => {
       const newEvent = JSON.parse(event.data);
 
       // Statuses:
+      // Extracting and processing html
       // Generating Script
       // Refining test script
       // Executing test script
@@ -67,7 +68,10 @@ const ArchiTest: React.FC = () => {
 
       let details;
 
-      if (newEvent.message.includes("Refining test script")) {
+      if (newEvent.message === "Generating test script") { 
+        setStatus("generating");
+      }
+      else if (newEvent.message.includes("Refining test script")) {
         setIterations(prev => prev + 1);
         setStatus("refining");
       }
@@ -176,7 +180,9 @@ const ArchiTest: React.FC = () => {
 
     // Store the interval ID in the ref
     intervalIdRef.current = intervalId;
-    setStatus("generating");
+
+    setStatus("extracting-and-processing-html");
+    addStatusEvent("info", "Extracting and processing html");
 
     (axios.post('http://localhost:8001/send_test', {
       url,
@@ -324,11 +330,12 @@ const ArchiTest: React.FC = () => {
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              {status === "generating" ? "Generating..." :
+              { status === "extracting-and-processing-html" ? "Extracting and processing HTML..." :
+                status === "generating" ? "Generating..." :
                 status === "running" ? "Running..." :
-                  status === "refining" ? "Refining..." :
-                  status === "passed" ? "Tests Passed" :
-                  status === "failed" ? "Tests Failed" : ""}
+                status === "refining" ? "Refining..." :
+                status === "passed" ? "Tests Passed" :
+                status === "failed" ? "Tests Failed" : "" }
             </Button>
           </CardFooter>
         </Card>
