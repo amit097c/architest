@@ -3,6 +3,7 @@ import axios from 'axios';
 import InputSection from "@/components/sections/InputSection";
 import OutputSection from "@/components/sections/OutputSection";
 import TestResultsSection from "./components/sections/TestResultsSection";
+// import TestErrorsSection from "./components/sections/TestErrorsSection";
 import ToolsSection from "@/components/sections/ToolsSection";
 import StatusSection from "./components/sections/StatusSection";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,10 @@ import { Badge } from "@/components/ui/badge";
 // Types
 type TestStatus = "idle" | "extracting-and-processing-html" | "generating" | "running" | "passed" | "failed" | "refining";
 type Framework = "playwright" | "cypress" | "selenium";
+
+interface TestErrors {
+  message: string;
+}
 
 interface TestResult {
   status: "passed" | "failed";
@@ -34,6 +39,8 @@ const ArchiTest: React.FC = () => {
   const [testScript, setTestScript] = useState<string>("");
   const [status, setStatus] = useState<TestStatus>("idle");
   const [results, setResults] = useState<TestResult | null>(null);
+  // const [testErrors, setTestErrors] = useState<TestErrors | null>(null);
+  const [statusTestErrors, setStatusTestErrors] = useState<TestErrors | null>(null);
   const [iterations, setIterations] = useState<number>(0);
   const [isMultiPage, setIsMultiPage] = useState<boolean>(false);
   const [includeApi, setIncludeApi] = useState<boolean>(false);
@@ -78,17 +85,13 @@ const ArchiTest: React.FC = () => {
         setStatus("failed");
         setResults({
           status: "failed",
-          message: "Unable to generate a valid test script after 10 attempts.",
-          errorDetails: newEvent.details,
+          message: "Max number of generations reached. This could mean:",
+          errorDetails: "• Your test steps may need to be more specific\n• The webpage elements might not be accessible\n• The webpage structure might have changed\n\nPlease verify your test steps and check if the webpage is accessible.",
         });
       }
       else if (newEvent.message === "Test execution failed") {
-        // placeholder (replace in the future)
-        const errorMsg = "Unable to locate element: .results-count";
-        setResults({
-          status: "failed",
-          message: "Test failed to execute correctly",
-          errorDetails: errorMsg,
+        setStatusTestErrors({
+          message: newEvent.errors
         });
         setStatus("failed");
       }
@@ -106,6 +109,7 @@ const ArchiTest: React.FC = () => {
           status: "passed",
           message: "Tests passed!",
         });
+        setStatusTestErrors(null);
         setStatus("passed");
       }
 
@@ -151,6 +155,7 @@ const ArchiTest: React.FC = () => {
     setTestScript("");
     setStatus("idle");
     setResults(null);
+    setStatusTestErrors(null);
     setIterations(0);
     setStatusEvents([]);
     setDuration(0);
@@ -238,7 +243,7 @@ const ArchiTest: React.FC = () => {
       </header>
 
       <div className="grid gap-6 md:grid-cols-12">
-        <div className="md:col-span-5">
+        <div className="md:col-span-5 space-y-6">
           <InputSection
             url={url}
             setUrl={setUrl}
@@ -253,6 +258,10 @@ const ArchiTest: React.FC = () => {
             status={status}
             generateTestScript={generateTestScript}
           />
+
+          <TestResultsSection 
+            results={results}
+          />
         </div>
 
         <div className="md:col-span-7 space-y-6">
@@ -262,15 +271,12 @@ const ArchiTest: React.FC = () => {
             addStatusEvent={addStatusEvent}
           />
 
-          <TestResultsSection 
-            results={results}
-          />
-
           <StatusSection
             currentStatus={status}
             events={statusEvents}
             iterations={iterations}
             duration={duration}
+            statusTestErrors={statusTestErrors}
           />
 
           <ToolsSection />

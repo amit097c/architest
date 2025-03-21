@@ -72,7 +72,7 @@ from playwright.sync_api import sync_playwright
             error_output = process.stderr if process.stderr else process.stdout
             
             # Send the error message to the frontend
-            writer({"type": "error", "message": "Test execution failed"})
+            writer({"type": "error", "message": "Test execution failed", "errors": error_output})
             writer({"type": "script", "message": script_content})
             
             print("\n=== Execution Error ===")
@@ -158,7 +158,12 @@ def retry_with_errors(state, llm, error_prompt, writer: StreamWriter):
 
     if state["retry_count"] >= 10:
         errors = state["messages"][-1].content if state["messages"] else "No script generated."
-        writer({"type": "error", "message": "Max refinement attempts reached. Unable to generate executable script.","details": errors})
+        writer({
+            "type": "error", 
+            "message": "Max refinement attempts reached. Please check your test steps and/or the webpage.",
+            "details": errors,
+            "maxAttempts": True  # Add a flag to identify this specific case
+        })
 
         print("\nMax retries reached. Stopping further refinements.")
 

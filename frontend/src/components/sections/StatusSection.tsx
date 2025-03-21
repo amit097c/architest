@@ -19,13 +19,17 @@ interface StatusSectionProps {
   events: StatusEvent[];
   iterations: number;
   duration?: number;
+  statusTestErrors?: {
+    message?: string;
+  } | null;
 }
 
 const StatusSection: React.FC<StatusSectionProps> = ({
   currentStatus,
   events,
   iterations,
-  duration
+  duration,
+  statusTestErrors: testErrors
 }) => {
   // Calculate duration if start and end times are available
   const getDuration = () => {
@@ -153,6 +157,24 @@ const StatusSection: React.FC<StatusSectionProps> = ({
             )}
           </ScrollArea>
         </div>
+
+        {/* Error Box */}
+        {testErrors && (
+          <>
+            <Separator className="my-4" />
+            <div className="mt-3">
+              <div className="text-sm font-medium mb-2 flex items-center">
+                <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+                <span>Error Details</span>
+              </div>
+              <div className="rounded-md border border-red-200 bg-red-50 p-2">
+                <pre className="text-sm whitespace-pre-wrap overflow-x-auto font-mono text-red-600">
+                  {testErrors.message}
+                </pre>
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
