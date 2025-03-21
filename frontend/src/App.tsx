@@ -264,7 +264,6 @@ const ArchiTest: React.FC = () => {
 
           <TestResultsSection 
             results={results}
-            duration={duration}
           />
 
           <StatusSection
