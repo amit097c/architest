@@ -17,6 +17,11 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException, TimeoutException
 import validators
 import os
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
+import tiktoken
+from clean_html import clean_html_for_tests
 
 def get_html(url):
     """
@@ -82,3 +87,10 @@ def get_html(url):
         # Handle any other unexpected errors
         print(f"Unexpected Error: {e}")
         return None
+
+def count_tokens(text, model="gpt-4"):
+    """
+    Returns the number of tokens for a given text and model.
+    """
+    encoding = tiktoken.encoding_for_model(model)
+    return len(encoding.encode(text))

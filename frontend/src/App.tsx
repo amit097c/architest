@@ -43,6 +43,7 @@ const ArchiTest: React.FC = () => {
   const [statusTestErrors, setStatusTestErrors] = useState<TestErrors | null>(null);
   const [iterations, setIterations] = useState<number>(0);
   const [isMultiPage, setIsMultiPage] = useState<boolean>(false);
+  const [multiPageUrls, setMultiPageUrls] = useState<string[]>([]);
   const [includeApi, setIncludeApi] = useState<boolean>(false);
   const [triggerEffect, setTriggerEffect] = useState(false);
   // Status tracking
@@ -185,7 +186,7 @@ const ArchiTest: React.FC = () => {
     addStatusEvent("info", "Extracting and processing html");
     console.log("sending request to send_test with payload", {url, testSteps, framework});
     (axios.post('http://localhost:8001/send_test', {
-      url,
+      url: isMultiPage ? [url, ...multiPageUrls.filter(Boolean)] : [url],
       test_steps: testSteps, // Ensure test_steps matches API expectations
       framework: framework,
     }) as Promise<any>)
@@ -254,6 +255,8 @@ const ArchiTest: React.FC = () => {
             setFramework={setFramework}
             isMultiPage={isMultiPage}
             setIsMultiPage={setIsMultiPage}
+            multiPageUrls={multiPageUrls}
+            setMultiPageUrls={setMultiPageUrls}
             includeApi={includeApi}
             setIncludeApi={setIncludeApi}
             status={status}

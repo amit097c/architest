@@ -15,10 +15,11 @@ Key Features:
 """
 
 import logging
+from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from get_html import get_html
+from get_html import get_html, count_tokens
 from clean_html import clean_html_for_tests
 from html_processor import HTMLProcessor
 from sse_starlette.sse import EventSourceResponse
@@ -27,12 +28,12 @@ import aiohttp
 import requests
 
 app = FastAPI()
-html_processor = HTMLProcessor(log_level=logging.DEBUG)
+html_processor = HTMLProcessor()
 
 
 # Define the request body model using Pydantic
 class TestRequest(BaseModel):
-    url: str
+    url: List[str]
     test_steps: str
     framework: str
 
@@ -49,18 +50,28 @@ app.add_middleware(
 
 @app.post("/send_test")
 async def send_test(request: TestRequest):
-    # Extract
-    html_content = get_html(request.url)
+    # Extract HTML for each selected page
+    page_contents = []
+    total_tokens = 0
 
-    cleaned_html = clean_html_for_tests(html_content)
+    for url in request.url:
+        html_content = get_html(url)  # Fetch HTML
+        cleaned_html = clean_html_for_tests(html_content)  # Clean HTML
+        # processed_html = html_processor.process_html(cleaned_html)  # Process HTML
+        
+        combined_html_text = str(cleaned_html)
+        token_count = count_tokens(combined_html_text, model="gpt-4")
+        print(f"{url} => {token_count} tokens")
+        total_tokens += token_count
+        # Store structured data
+        page_contents.append({"url": url, "html": cleaned_html})
 
-    processed_html = html_processor.process_html(cleaned_html)
-
+    print(f"Total tokens: {total_tokens}")
     # Prepare the payload to send to the llm server
     payload = {
-        "url": request.url,
+        "url": request.url[0],
         "test_steps": request.test_steps,
-        "html_content": processed_html,
+        "html_content": page_contents,
         "framework": request.framework,
     }
 

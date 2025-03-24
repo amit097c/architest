@@ -17,6 +17,8 @@ interface InputSectionProps {
   setFramework: Dispatch<SetStateAction<Framework>>;
   isMultiPage: boolean;
   setIsMultiPage: (isMultiPage: boolean) => void;
+  multiPageUrls: string[];
+  setMultiPageUrls: Dispatch<SetStateAction<string[]>>;
   includeApi: boolean;
   setIncludeApi: (includeApi: boolean) => void;
   status: string;
@@ -32,6 +34,8 @@ const InputSection: React.FC<InputSectionProps> = ({
   setFramework,
   isMultiPage,
   setIsMultiPage,
+  multiPageUrls,
+  setMultiPageUrls,
   includeApi,
   setIncludeApi,
   status,
@@ -56,6 +60,44 @@ const InputSection: React.FC<InputSectionProps> = ({
             onChange={(e) => setUrl(e.target.value)}
           />
         </div>
+
+        {/* Multi-Page URLs Input */}
+        {isMultiPage && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Additional URLs</label>
+            {multiPageUrls.map((pageUrl, index) => (
+              <div key={index} className="flex space-x-2">
+                <Input
+                  value={pageUrl}
+                  onChange={(e) => {
+                    const updated = [...multiPageUrls];
+                    updated[index] = e.target.value;
+                    setMultiPageUrls(updated);
+                  }}
+                  placeholder={`Page URL ${index + 1}`}
+                />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    const updated = multiPageUrls.filter((_, i) => i !== index);
+                    setMultiPageUrls(updated);
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMultiPageUrls([...multiPageUrls, ""])}
+            >
+              + Add Page
+            </Button>
+          </div>
+        )}
 
         {/* Test Steps Input */}
         <div className="space-y-2">
