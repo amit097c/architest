@@ -179,9 +179,20 @@ def execute_selenium_script(state, writer: StreamWriter):
 
     try:
         writer({"type": "info", "message": "Executing test script"})
-        selenium_jar_path = r"C:\Users\anilk\OneDrive\Desktop\mentorship_project_v2\architest\llm\tests\selenium-java-4.29.0\*"#"C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\selenium-java-4.29.0/*"  # Path to the directory with Selenium JAR files
-        chromedriver_path = "C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\chromedriver-win64\\chromedriver.exe"  # Path to your ChromeDriver executable
+        #selenium_jar_path = r"C:\Users\anilk\OneDrive\Desktop\mentorship_project_v2\architest\llm\tests\selenium-java-4.29.0\*"#"C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\selenium-java-4.29.0/*"  # Path to the directory with Selenium JAR files
+        #chromedriver_path = "C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\chromedriver-win64\\chromedriver.exe"  # Path to your ChromeDriver executable
         # Set the environment variable for chromedriver
+        
+        # Get the current script's directory (i.e., utils/)
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+        # Define the relative path to java_utils/
+        JAVA_UTILS_DIR = os.path.join(SCRIPT_DIR, "java_utils")
+
+        # paths
+        selenium_jar_path = os.path.join(JAVA_UTILS_DIR, "selenium-java-4.29.0", "*")  # Path to the Selenium JARs
+        chromedriver_path = os.path.join(JAVA_UTILS_DIR, "chromedriver-win64", "chromedriver.exe")  # Path to ChromeDriver
+
         os.environ["webdriver.chrome.driver"] = chromedriver_path
 
        # Command to run the Java test automation script
