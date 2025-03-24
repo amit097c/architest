@@ -14,3 +14,4 @@ class CustomState(TypedDict):
     success_rate: Optional[float]
     error_rate: Optional[float]
     retry_count: Optional[int]
+    framework: Optional[str]

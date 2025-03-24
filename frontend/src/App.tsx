@@ -129,7 +129,7 @@ const ArchiTest: React.FC = () => {
     return () => {
       eventSource.close();
     };
-  }, [triggerEffect]);
+  }, [triggerEffect,framework]);
 
   // Add event to status log
   const addStatusEvent = (
@@ -183,10 +183,11 @@ const ArchiTest: React.FC = () => {
 
     setStatus("extracting-and-processing-html");
     addStatusEvent("info", "Extracting and processing html");
-
+    console.log("sending request to send_test with payload", {url, testSteps, framework});
     (axios.post('http://localhost:8001/send_test', {
       url,
       test_steps: testSteps, // Ensure test_steps matches API expectations
+      framework: framework,
     }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);

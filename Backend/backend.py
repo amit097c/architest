@@ -34,6 +34,7 @@ html_processor = HTMLProcessor(log_level=logging.DEBUG)
 class TestRequest(BaseModel):
     url: str
     test_steps: str
+    framework: str
 
 
 # Add CORS middleware
@@ -60,6 +61,7 @@ async def send_test(request: TestRequest):
         "url": request.url,
         "test_steps": request.test_steps,
         "html_content": processed_html,
+        "framework": request.framework,
     }
 
     # Send the payload to the llm server

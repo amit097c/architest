@@ -24,7 +24,7 @@ async def generate_tests(request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
 
     # Validate required fields
-    required_fields = ["url", "test_steps", "html_content"]
+    required_fields = ["url", "test_steps", "html_content","framework"]
     for field in required_fields:
         if field not in data:
             raise HTTPException(
@@ -39,6 +39,7 @@ async def generate_tests(request: Request):
         "html_content": data.get("html_content", ""),
         "has_errors": False,
         "error_message": None,
+        "framework": data.get("framework", "playwright"),
     }
 
     config = {"configurable": {"thread_id": "abc123"}}
@@ -53,6 +54,7 @@ async def generate_tests(request: Request):
             print(f"Added to queue: {chunk}")
         return {"status": "Test generation started successfully"}
     except Exception as e:
+        print("Test generation failed:", str(e))
         raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
 
 
