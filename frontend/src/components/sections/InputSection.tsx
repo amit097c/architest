@@ -1,4 +1,4 @@
-import React, {Dispatch, SetStateAction} from "react";
+import React, {Dispatch, SetStateAction, useEffect} from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Play, RefreshCw } from "lucide-react";
 
 type Framework = 'playwright' | 'cypress' | 'selenium';
+type Language = 'python' | 'javascript' | 'java';
 
 interface InputSectionProps {
   url: string;
@@ -23,6 +24,8 @@ interface InputSectionProps {
   setIncludeApi: (includeApi: boolean) => void;
   status: string;
   generateTestScript: () => void;
+  language: Language;
+  setLanguage: Dispatch<SetStateAction<Language>>;
 }
 
 const InputSection: React.FC<InputSectionProps> = ({
@@ -39,8 +42,39 @@ const InputSection: React.FC<InputSectionProps> = ({
   includeApi,
   setIncludeApi,
   status,
-  generateTestScript
+  generateTestScript,
+  language,
+  setLanguage
 }) => {
+  // Function to get available languages for the selected framework
+  const getAvailableLanguages = (framework: Framework) => {
+    switch (framework) {
+      case "playwright":
+        return [
+          { value: "python", label: "Python" },
+          { value: "javascript", label: "JavaScript" }
+        ];
+      case "selenium":
+        return [
+          { value: "java", label: "Java" }
+        ];
+      case "cypress":
+        return [
+          { value: "javascript", label: "JavaScript" }
+        ];
+      default:
+        return [];
+    }
+  };
+
+  // Update language when framework changes if current language isn't available
+  useEffect(() => {
+    const availableLanguages = getAvailableLanguages(framework);
+    if (!availableLanguages.some(lang => lang.value === language)) {
+      setLanguage(availableLanguages[0].value as Language);
+    }
+  }, [framework]);
+
   return (
     <Card>
       <CardHeader>
@@ -115,7 +149,7 @@ const InputSection: React.FC<InputSectionProps> = ({
           />
         </div>
 
-        {/* Framework and Options */}
+        {/* Framework and Language Options */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label htmlFor="framework" className="text-sm font-medium">Framework</label>
@@ -135,23 +169,43 @@ const InputSection: React.FC<InputSectionProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Options</label>
-            <div className="flex space-x-3 pt-2">
-              <Button
-                variant={isMultiPage ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIsMultiPage(!isMultiPage)}
-              >
-                Multi-Page
-              </Button>
-              <Button
-                variant={includeApi ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIncludeApi(!includeApi)}
-              >
-                API Tests
-              </Button>
-            </div>
+            <label htmlFor="language" className="text-sm font-medium">Language</label>
+            <Select
+              value={language}
+              onValueChange={(value) => setLanguage(value as Language)}
+            >
+              <SelectTrigger id="language">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableLanguages(framework).map(lang => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Options */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Options</label>
+          <div className="flex space-x-3 pt-2">
+            <Button
+              variant={isMultiPage ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsMultiPage(!isMultiPage)}
+            >
+              Multi-Page
+            </Button>
+            <Button
+              variant={includeApi ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIncludeApi(!includeApi)}
+            >
+              API Tests
+            </Button>
           </div>
         </div>
       </CardContent>

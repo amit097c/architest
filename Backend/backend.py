@@ -36,6 +36,7 @@ class TestRequest(BaseModel):
     url: List[str]
     test_steps: str
     framework: str
+    language: str  # Add this line
 
 
 # Add CORS middleware
@@ -73,6 +74,7 @@ async def send_test(request: TestRequest):
         "test_steps": request.test_steps,
         "html_content": page_contents,
         "framework": request.framework,
+        "language": request.language,  # Add this line
     }
 
     # Send the payload to the llm server

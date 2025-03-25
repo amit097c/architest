@@ -5,40 +5,43 @@ from agent.utils.tools import clean_script_response
 from langgraph.types import StreamWriter
 
 # Function defined to invoke the LLM model with its configuration
-def invoke_llm(state, llm, prompt_template_playwright,prompt_template_selenium, writer: StreamWriter):
-    # For sending Generating Script message to the frontend
+def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium, writer: StreamWriter):
     writer({"type": "info", "message": "Generating script"})
-    if state["framework"] == "playwright":
-        prompt = prompt_template_playwright.invoke(
-            {
+    
+    framework = state["framework"]
+    language = state.get("language", "python")  # Default to python if not specified
+    
+    if framework == "playwright":
+        # Choose prompt based on language
+        if language == "javascript":
+            prompt = prompt_template_playwright_js.invoke({
                 "test_steps": state["test_steps"],
                 "html_content": state["html_content"],
                 "url": state["url"],
                 "messages": state["messages"],
-            }
-        )
-        response = llm.invoke(prompt)
-        # get the response and clean it to remove the markdown syntax
-        cleaned_content = clean_script_response(response.content)
-        # return the cleaned content
-        print(f"generated playwright script: {cleaned_content} ")
-        return {"messages": [{"role": "assistant", "content": cleaned_content}]}
-    elif state["framework"] == "selenium":
-        prompt = prompt_template_selenium.invoke(
-            {
+            })
+        else:  # python
+            prompt = prompt_template_playwright.invoke({
                 "test_steps": state["test_steps"],
                 "html_content": state["html_content"],
                 "url": state["url"],
                 "messages": state["messages"],
-            }
-        )
-        response = llm.invoke(prompt)
-        # get the response and clean it to remove the markdown syntax
-        cleaned_content = clean_script_response(response.content)
-        # return the cleaned content
-        print(f"generated selenium script: {cleaned_content} ")
-        return {"messages": [{"role": "assistant", "content": cleaned_content}]}
-        
+            })
+    
+    elif framework == "selenium":
+        # Selenium only supports Java for now
+        prompt = prompt_template_selenium.invoke({
+            "test_steps": state["test_steps"],
+            "html_content": state["html_content"],
+            "url": state["url"],
+            "messages": state["messages"],
+        })
+    
+    response = llm.invoke(prompt)
+    cleaned_content = clean_script_response(response.content)
+    print(f"generated {framework} {language} script: {cleaned_content}")
+    
+    return {"messages": [{"role": "assistant", "content": cleaned_content}]}
 
 # Function defined to execute the Playwright script
 def execute_playwright_script(state, writer: StreamWriter):

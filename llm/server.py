@@ -40,6 +40,7 @@ async def generate_tests(request: Request):
         "has_errors": False,
         "error_message": None,
         "framework": data.get("framework", "playwright"),
+        "language": data.get("language", "python"),  # Python language as default
     }
 
     config = {"configurable": {"thread_id": "abc123"}}

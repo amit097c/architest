@@ -15,3 +15,4 @@ class CustomState(TypedDict):
     error_rate: Optional[float]
     retry_count: Optional[int]
     framework: Optional[str]
+    language: Optional[str]  # Add this line

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 // Types
 type TestStatus = "idle" | "extracting-and-processing-html" | "generating" | "running" | "passed" | "failed" | "refining";
 type Framework = "playwright" | "cypress" | "selenium";
+type Language = "python" | "javascript" | "java";
 
 interface TestErrors {
   message: string;
@@ -46,6 +47,7 @@ const ArchiTest: React.FC = () => {
   const [multiPageUrls, setMultiPageUrls] = useState<string[]>([]);
   const [includeApi, setIncludeApi] = useState<boolean>(false);
   const [triggerEffect, setTriggerEffect] = useState(false);
+  const [language, setLanguage] = useState<Language>("python");
   // Status tracking
   const [statusEvents, setStatusEvents] = useState<StatusEvent[]>([]);
   const [duration, setDuration] = useState(0);
@@ -189,6 +191,7 @@ const ArchiTest: React.FC = () => {
       url: isMultiPage ? [url, ...multiPageUrls.filter(Boolean)] : [url],
       test_steps: testSteps, // Ensure test_steps matches API expectations
       framework: framework,
+      language: language,
     }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);
@@ -253,6 +256,8 @@ const ArchiTest: React.FC = () => {
             setTestSteps={setTestSteps}
             framework={framework}
             setFramework={setFramework}
+            language={language}
+            setLanguage={setLanguage}
             isMultiPage={isMultiPage}
             setIsMultiPage={setIsMultiPage}
             multiPageUrls={multiPageUrls}
