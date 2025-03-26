@@ -3,6 +3,8 @@ import subprocess
 import os
 from agent.utils.tools import clean_script_response
 from langgraph.types import StreamWriter
+import platform
+import re
 
 # Function defined to invoke the LLM model with its configuration
 def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium, writer: StreamWriter):
@@ -174,13 +176,18 @@ def execute_selenium_script(state, writer: StreamWriter):
     print(script_content)
     print("=====================\n")
 
-    # Write the script to a temporary Java file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".java", delete=False) as f:
-        f.write(script_content)
-        # f.write(wrapper_script)
-        temp_path = f.name
+    match = re.search(r'public\s+class\s+(\w+)', script_content)
+    if not match:
+        writer({"type": "error", "message": "Could not find a public class in the script."})
+        return
+    class_name = match.group(1)
 
-    try:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        java_file_path = os.path.join(tmpdir, f"{class_name}.java")
+        with open(java_file_path, "w") as f:
+            f.write(script_content)
+
+    # try:
         writer({"type": "info", "message": "Executing test script"})
         #selenium_jar_path = r"C:\Users\anilk\OneDrive\Desktop\mentorship_project_v2\architest\llm\tests\selenium-java-4.29.0\*"#"C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\selenium-java-4.29.0/*"  # Path to the directory with Selenium JAR files
         #chromedriver_path = "C:\\Users\\anilk\\OneDrive\\Desktop\\mentorship_project_v2\\architest\\llm\\tests\\chromedriver-win64\\chromedriver.exe"  # Path to your ChromeDriver executable
@@ -193,47 +200,56 @@ def execute_selenium_script(state, writer: StreamWriter):
         JAVA_UTILS_DIR = os.path.join(SCRIPT_DIR, "java_utils")
 
         # paths
-        selenium_jar_path = os.path.join(JAVA_UTILS_DIR, "selenium-java-4.29.0", "*")  # Path to the Selenium JARs
-        chromedriver_path = os.path.join(JAVA_UTILS_DIR, "chromedriver-win64", "chromedriver.exe")  # Path to ChromeDriver
+        selenium_jar_path = os.path.join(JAVA_UTILS_DIR, "selenium-java-4", "*")  # Path to the Selenium JARs
+        chromedriver_path = os.path.join(JAVA_UTILS_DIR, "chromedriver-mac-x64", "chromedriver")  # Path to ChromeDriver
 
         os.environ["webdriver.chrome.driver"] = chromedriver_path
 
+        sep = ";" if platform.system() == "Windows" else ":"
+
+        classpath = f"{selenium_jar_path}{sep}{tmpdir}"
+
        # Command to run the Java test automation script
-        compile_run_command = [
-        "java",
-        "-cp", f".;{selenium_jar_path}",  # Ensure that the Selenium JARs are included in the classpath
-        temp_path # Replace with the name of your Java class (without .class)
+       # Compile the Java file
+        compile_command = [
+            "javac",
+            "-cp", classpath,
+            "-d", tmpdir,
+            java_file_path
         ]
-        class_name = os.path.basename(temp_path).replace(".java", "")  # Extract class name from filename
+        compile_process = subprocess.run(compile_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        if compile_process.returncode != 0:
+            print("Compilation failed:", compile_process.stderr)
+            writer({"type": "error", "message": "Compilation failed", "errors": compile_process.stderr})
+            writer({"type": "script", "message": script_content})
+            state["messages"].append({"role": "system", "content": f"Script compilation failed: {compile_process.stderr}"})
+            state["has_errors"] = True
+            state["error_message"] = compile_process.stderr
+            return state
+
+        # Run the compiled class
+        class_name = os.path.basename(java_file_path).replace(".java", "")
         run_command = [
-        "java",
-        "-cp", f".;{selenium_jar_path}",
-        class_name
-    ]
-        # Run the Java script
-        try:
-            compile_run_process = subprocess.run(compile_run_command, stdout=subprocess.PIPE,  stderr=subprocess.PIPE, text=True    )
-            if compile_run_process.returncode != 0:
-                print("failed:", compile_run_process.stderr)
-                writer({"type": "error", "message": "Test Script failed", "errors": compile_run_process.stderr})
-                writer({"type": "script", "message": script_content})
-                state["messages"].append({"role": "system", "content": f"Script compilation failed with error: {compile_run_process.stderr}"})
-                state["has_errors"] = True
-                state["error_message"] = compile_run_process.stderr
-                
-                #return  # Exit if compilation fails
-            else:
-               print("Execution Output:", compile_run_process.stdout)
-               writer({"type": "success", "message": "Tests executed successfully"})
-               writer({"type": "script", "message": script_content})
-               state["messages"].append({"role": "system", "content": "Script executed successfully"})
-               state["has_errors"] = False
+            "java",
+            "-cp", classpath,
+            class_name
+        ]
+        run_process = subprocess.run(run_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-        except subprocess.CalledProcessError as e:
-            print(f"Error while running Java code: {e}")
-
-    finally:
-        os.unlink(temp_path)
+        if run_process.returncode != 0:
+            print("Execution failed:", run_process.stderr)
+            writer({"type": "error", "message": "Execution failed", "errors": run_process.stderr})
+            writer({"type": "script", "message": script_content})
+            state["messages"].append({"role": "system", "content": f"Script execution failed: {run_process.stderr}"})
+            state["has_errors"] = True
+            state["error_message"] = run_process.stderr
+        else:
+            print("Execution Output:", run_process.stdout)
+            writer({"type": "success", "message": "Tests executed successfully"})
+            writer({"type": "script", "message": script_content})
+            state["messages"].append({"role": "system", "content": "Script executed successfully"})
+            state["has_errors"] = False
     return state
 
 # Function defined to handle errors
