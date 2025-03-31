@@ -159,6 +159,7 @@ error_prompt_selenium = ChatPromptTemplate(
             Constraints:
             - **Do NOT explain** the changes, just provide the corrected Java Selenium test script.  
             - **Fix any incorrect XPath or CSS selectors** based on the provided HTML content.  
+            - Dont set path of chrome driver, it is already configured.
             - Use **WebDriverWait** instead of `Thread.sleep`.  
             - Implement **proper exception handling** (`try-catch`) to prevent crashes.  
             - Close the WebDriver properly using `try-finally` to avoid resource leaks.  
