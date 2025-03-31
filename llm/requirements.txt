@@ -8,3 +8,5 @@ requests        # Used in client.py for HTTP requests
 uvicorn         # Used for running the FastAPI server
 playwright      # Used for browser automation
 asyncio         # Used for async programming
+chromadb        # Used for vector database
+pytest-playwright
