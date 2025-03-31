@@ -16,3 +16,4 @@ class CustomState(TypedDict):
     retry_count: Optional[int]
     framework: Optional[str]
     language: Optional[str]  # Add this line
+    last_script: Optional[str] = None

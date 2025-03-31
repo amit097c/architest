@@ -9,6 +9,7 @@ from agent.utils.nodes import (
     invoke_llm,
     execute_playwright_script,
     execute_selenium_script,
+    execute_playwright_js_script,
     handle_errors,
     handle_framework,
     retry_with_errors,
@@ -170,15 +171,84 @@ error_prompt_selenium = ChatPromptTemplate(
     ]
 )
 
+# Define JavaScript prompt template for Playwright
+prompt_template_playwright_js = ChatPromptTemplate(
+    [
+        (
+            "system",
+            """
+            You are a JavaScript Playwright test script generator. Generate only a JavaScript Playwright test script for the given HTML content and test steps, remember to wait for pages to load.
+
+            Test Steps:
+            {test_steps}
+
+            HTML Content:
+            {html_content}
+
+            URL:
+            {url}
+            
+            Constraints:
+            - Use Playwright's best practices with JavaScript.
+            - Analyze the HTML content to identify the necessary selectors.
+            - Ensure the script is robust and handles common edge cases.
+            - Set appropriate timeouts for actions based on their complexity or 10s as default.
+            - Ensure the test cases run in headless mode.
+            - Use async/await syntax for better readability and error handling.
+            - Export the test function for proper test runner integration.
+            """,
+        ),
+        MessagesPlaceholder("messages"),
+    ]
+)
+
+# Define JavaScript error prompt template for Playwright
+error_prompt_playwright_js = ChatPromptTemplate(
+    [
+        (
+            "system",
+            """
+            Fix the following JavaScript Playwright test script that produced an error.
+            
+            Current script:
+            {original_script}
+            
+            Current error:
+            {error_message}
+
+            Test Steps:
+            {test_steps}
+            
+            HTML Content:
+            {html_content}
+
+            URL:
+            {url}
+            
+            Constraints:
+            - Generate only the corrected JavaScript script without any explanations.
+            - Avoid solutions that failed in previous attempts.
+            - Analyze the HTML content to identify the necessary selectors.
+            - Set appropriate timeouts for actions based on their complexity or 10s as default.
+            - Ensure the test cases run in headless mode.
+            - Use async/await syntax for better readability and error handling.
+            - Export the test function for proper test runner integration.
+            """,
+        )
+    ]
+)
+
+
 
 # Define nodes
-workflow.add_node("home", lambda state, writer: invoke_llm(state, llm, prompt_template_playwright,prompt_template_selenium, writer))
+workflow.add_node("home", lambda state, writer: invoke_llm(state, llm, prompt_template_playwright,prompt_template_selenium, prompt_template_playwright_js, writer))
 #workflow.add_node("execute_playwright", execute_playwright_script())
 workflow.add_node("execute_playwright", lambda state, writer: execute_playwright_script(state, writer))
 workflow.add_node("execute_selenium", lambda state, writer: execute_selenium_script(state, writer))
+workflow.add_node("execute_playwright_js", lambda state, writer: execute_playwright_js_script(state, writer))
 
 #workflow.add_node("execute_selenium", execute_selenium_script)
-workflow.add_node("retry", lambda state, writer: retry_with_errors(state, llm, error_prompt_playwright,error_prompt_selenium, writer))
+workflow.add_node("retry", lambda state, writer: retry_with_errors(state, llm, error_prompt_playwright,error_prompt_selenium, error_prompt_playwright_js, writer))
 workflow.add_node("clear", clear_memory)
 
 # Define the flow
@@ -186,8 +256,10 @@ workflow.add_edge(START, "home")
 #workflow.add_edge("home", "execute")
 workflow.add_conditional_edges("home",handle_framework, {
     "execute_playwright_script": "execute_playwright",
-    "execute_selenium_script": "execute_selenium"
+    "execute_selenium_script": "execute_selenium",
+    "execute_playwright_js_script": "execute_playwright_js"
 })
+
 # Add conditional routing based on errors
 workflow.add_conditional_edges(
     "execute_playwright", handle_errors, {
@@ -195,8 +267,16 @@ workflow.add_conditional_edges(
         "success": "clear", # Route to clear instead of END
     }
 )
+
 workflow.add_conditional_edges(
     "execute_selenium", handle_errors, {
+        "retry": "retry", 
+        "success": "clear", # Route to clear instead of END
+    }
+)
+
+workflow.add_conditional_edges(
+    "execute_playwright_js", handle_errors, {
         "retry": "retry", 
         "success": "clear", # Route to clear instead of END
     }
@@ -207,6 +287,7 @@ workflow.add_conditional_edges(
     "retry", limit_error, {
         "execute_selenium": "execute_selenium",  # Continue retrying if needed
         "execute_playwright": "execute_playwright",  # Continue retrying if needed
+        "execute_playwright_js": "execute_playwright_js",  # Continue retrying if needed
         "stop": "clear"  # Stop execution when limit is reached
     }
 )

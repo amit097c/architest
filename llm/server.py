@@ -41,6 +41,7 @@ async def generate_tests(request: Request):
         "error_message": None,
         "framework": data.get("framework", "playwright"),
         "language": data.get("language", "python"),  # Python language as default
+        "last_script": data.get("last_script", None),
     }
 
     config = {"configurable": {"thread_id": "abc123"}}
