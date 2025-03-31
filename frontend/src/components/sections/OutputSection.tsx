@@ -33,8 +33,10 @@ const OutputSection: React.FC<OutputSectionProps> = ({
               navigator.clipboard.writeText(testScript);
               addStatusEvent("info", "Test script copied to clipboard");
             }}
+            style={{ cursor: "pointer" }}
           >
             <Copy className="h-4 w-4" />
+            
           </Button>
           <Button
             variant="outline"
@@ -43,6 +45,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             onClick={() => {
               addStatusEvent("info", "Test script saved");
             }}
+            style={{ cursor: "pointer" }}
           >
             <Save className="h-4 w-4" />
           </Button>
