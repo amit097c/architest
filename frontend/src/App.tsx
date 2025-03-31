@@ -73,7 +73,7 @@ const ArchiTest: React.FC = () => {
 
       let details;
 
-      if (newEvent.message === "Generating test script") { 
+      if (newEvent.message === "Generating script") { 
         setStatus("generating");
       }
       else if (newEvent.message.includes("Refining test script")) {

@@ -1,92 +1,289 @@
 """
 get_html.py
 
-This module extracts the full HTML content of a given URL using Selenium WebDriver.
-It uses headless Chrome to fetch the web page and extracts only the <body> content.
+This module extracts the full HTML content of a given URL using Playwright.
+It uses headless Chromium to fetch the web page, handles dynamic content,
+and captures elements that appear after scrolling.
 
 Key Features:
-- Uses Selenium with Chrome WebDriver in headless mode.
-- Validates URL before processing.
-- Implements a timeout of 15 seconds for page loading.
-- Saves extracted HTML to 'extracted_files/scraped.html'.
-- Handles exceptions for invalid URLs, timeout issues, and WebDriver errors.
-
+- Uses Playwright with Chromium in headless mode
+- Validates URL before processing
+- Implements scrolling to capture dynamic content
+- Waits for network idle to ensure content is loaded
+- Saves extracted HTML to 'extracted_files/scraped.html'
+- Handles exceptions for invalid URLs and browser errors
 """
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import WebDriverException, TimeoutException
+from playwright.async_api import async_playwright
 import validators
 import os
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+import asyncio
 import tiktoken
 from clean_html import clean_html_for_tests
+from bs4 import BeautifulSoup, Comment
+import json
+import re
 
-def get_html(url):
+# Global browser instance
+_browser = None
+_playwright = None
+
+async def init_browser():
+    """Initialize the global browser instance if it doesn't exist."""
+    global _browser, _playwright
+    if _browser is None:
+        _playwright = await async_playwright().start()
+        _browser = await _playwright.chromium.launch(headless=True)
+
+async def close_browser():
+    """Close the global browser instance."""
+    global _browser, _playwright
+    if _browser:
+        await _browser.close()
+        _browser = None
+    if _playwright:
+        await _playwright.stop()
+        _playwright = None
+         
+
+
+def extract_automation_elements(html):
     """
-    Extracts the HTML content of the given URL's <body> tag using Selenium.
+    Extracts a simplified but complete HTML that preserves elements important for testing
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    
+    # Remove only the most unnecessary elements
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+        
+    # Remove comments
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    
+    # Instead of removing elements, add special attributes to important ones
+    important_tags = [
+        "input", "button", "select", "option", "textarea",
+        "a", "label", "form", "iframe", "table", "tr", "td",
+        "div", "span", "h1", "h2", "h3", "h4", "h5", "h6", "p"
+    ]
+    
+    # Highlight important elements with data attributes to guide the LLM
+    for tag in soup.find_all(important_tags):
+        tag["data-test-important"] = "true"
+    
+    # Save the pruned HTML
+    os.makedirs("extracted_files", exist_ok=True)
+    with open("extracted_files/elements.html", "w", encoding="utf-8") as f:
+        f.write(str(soup))
+    
+    return str(soup)
+
+def optimize_html_for_llm(html):
+    """
+    Optimizes HTML for LLM token consumption while preserving testable elements
+    like buttons, inputs, labels, links, etc.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    # 1. Remove script/style/meta/etc. but preserve SVGs used inside buttons/links
+    for tag in soup.find_all(["script", "style", "noscript", "meta", "link"]):
+        tag.decompose()
+    for tag in soup.find_all("svg"):
+        if not tag.find_parent(["button", "a", "label"]):
+            tag.decompose()
+
+    # 2. Remove all comments
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+
+    # 3. Truncate large text blocks, but not inside important interactive elements
+    interactive_parents = ["button", "a", "label", "option", "textarea", "input"]
+    for text_node in soup.find_all(string=True):
+        if (
+            text_node.parent.name not in interactive_parents
+            and len(text_node.strip()) > 100
+        ):
+            text_node.replace_with(text_node[:100] + "...")
+
+    # 4. Keep important interactive elements and their context
+    important_tags = [
+        "input", "button", "select", "option", "textarea", "a", 
+        "label", "form", "iframe", "table"
+    ]
+
+    # 5. Simplify deeply nested structures
+    max_depth = 10
+
+    def process_element(element, current_depth=0):
+        if current_depth > max_depth:
+            # Preserve the element, but remove deep children
+            for child in list(element.children):
+                if child.name:
+                    child.decompose()
+            element.append("[nested content removed]")
+            return
+
+        for child in list(element.children):
+            if child.name:
+                # Limit attributes on non-important tags
+                if child.name not in important_tags:
+                    allowed_attrs = [
+                        "id", "class", "name", "type", "role",
+                        "data-testid", "aria-label", "href",
+                        "value", "placeholder", "title", "alt"
+                    ]
+                    for attr in list(child.attrs.keys()):
+                        if (
+                            attr not in allowed_attrs
+                            and not attr.startswith("data-")
+                            and not attr.startswith("aria-")
+                        ):
+                            del child.attrs[attr]
+
+                    # Avoid deduplicating if it contains interactive content
+                    if (
+                        child.name == "div"
+                        and not child.find(["button", "a", "input"])
+                        and len(list(child.find_all_next(child.name, attrs=child.attrs))) > 5
+                    ):
+                        similar_siblings = child.find_all_next(child.name, attrs=child.attrs)
+                        if len(similar_siblings) > 3:
+                            for sibling in similar_siblings[3:]:
+                                sibling.decompose()
+
+                process_element(child, current_depth + 1)
+
+    if soup.body:
+        process_element(soup.body)
+
+    # 6. Add markers for LLM guidance
+    for tag in soup.find_all(important_tags):
+        tag["data-test-importance"] = "high"
+
+    # 7. Minimize whitespace
+    html_str = str(soup)
+    html_str = re.sub(r"\s+", " ", html_str)
+
+    # Save optimized HTML for inspection
+    os.makedirs("extracted_files", exist_ok=True)
+    with open("extracted_files/optimized_for_llm.html", "w", encoding="utf-8") as f:
+        f.write(html_str)
+
+    return html_str
+
+def clean_html(raw_html):
+    """
+    Minimally clean the HTML while preserving all structure important for testing
+    """
+    soup = BeautifulSoup(raw_html, "html.parser")
+    
+    # Remove only script and style tags
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+        
+    # Clean comments
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    
+    # Don't remove any other elements to ensure no important elements are lost
+    
+    return str(soup)
+
+async def scroll_to_bottom(page):
+    """
+    Scrolls the page to the bottom and waits for dynamic content to load.
+    Optimized version with faster scrolling and smarter waiting.
+    """
+    await page.evaluate("""async () => {
+        await new Promise((resolve) => {
+            let totalHeight = 0;
+            const distance = 300; // Increased scroll distance
+            const timer = setInterval(() => {
+                const scrollHeight = document.body.scrollHeight;
+                window.scrollBy(0, distance);
+                totalHeight += distance;
+                
+                if(totalHeight >= scrollHeight){
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 50); // Reduced interval for faster scrolling
+        });
+    }""")
+
+async def get_html_async(url):
+    """
+    Asynchronously extracts the HTML content of the given URL using Playwright.
+    Handles dynamic content and scrolling.
 
     Args:
         url (str): The URL of the web page to extract HTML from.
 
     Returns:
-        str or None: The extracted HTML content (body tag only) if successful, otherwise None.
+        str or None: The extracted HTML content if successful, otherwise None.
     """
-    
-    # Validate the provided URL before proceeding
     if not validators.url(url):
         print("Invalid URL format. Please enter a valid URL (e.g., https://example.com).")
         return None
     
     try:
-        # Configure Chrome WebDriver options for headless browsing
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--ignore-certificate-errors")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-dev-shm-usage")
-
-        # Initialize Selenium WebDriver with the configured options
-        driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(15)
-
+        # Ensure browser is initialized
+        await init_browser()
+        
+        # Create a new context with optimized settings
+        context = await _browser.new_context(
+            ignore_https_errors=True,
+            viewport={'width': 1920, 'height': 1080},
+            bypass_csp=True  # Bypass Content Security Policy for faster loading
+        )
+        
         try:
-            # Open the given URL
-            driver.get(url)
-
-            # Extract the <body> tag's outerHTML
-            body = driver.find_element('tag name', 'body').get_attribute('outerHTML')
-
+            # Create a new page with reduced timeout
+            page = await context.new_page()
+            page.set_default_timeout(15000)  # Reduced to 15 seconds
+            
+            # Navigate to the URL with optimized waiting strategy
+            await page.goto(url, wait_until='domcontentloaded')  # Changed from networkidle
+            
+            # Scroll to bottom and wait for dynamic content
+            await scroll_to_bottom(page)
+            
+            # Get the full HTML content
+            content = await page.content()
+            
             # Ensure the output directory exists
             os.makedirs("extracted_files", exist_ok=True)
-
+            
             # Save the extracted HTML to a file
             with open('extracted_files/scraped.html', 'w', encoding='utf-8') as file:
-                file.write(body)
-
-            driver.quit()
-
+                file.write(content)
+            
             print(f"Scraped HTML saved to extracted_files/scraped.html")
-            return body
-        
-        except TimeoutException:
-            # Handle cases where the website takes too long to load
-            print("Timeout Error: The website took too long to load (Exceeded 15 seconds).")
+            return content
+            
+        except Exception as e:
+            print(f"Error during page processing: {e}")
             return None
-
+            
         finally:
-            driver.quit()
-    
-    except WebDriverException as e:
-        # Handle WebDriver-related errors
-        print(f"WebDriver Error: {e}")
-        return None
-
+            await context.close()
+            
     except Exception as e:
-        # Handle any other unexpected errors
         print(f"Unexpected Error: {e}")
         return None
+
+async def get_html(url):
+    """
+    Asynchronous function to extract HTML content.
+    This version is compatible with FastAPI's event loop.
+
+    Args:
+        url (str): The URL of the web page to extract HTML from.
+
+    Returns:
+        str or None: The extracted HTML content if successful, otherwise None.
+    """
+    return await get_html_async(url)
 
 def count_tokens(text, model="gpt-4"):
     """

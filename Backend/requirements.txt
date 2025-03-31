@@ -4,3 +4,4 @@ selenium
 validators
 sse_starlette
 aiohttp
+playwright==1.42.0

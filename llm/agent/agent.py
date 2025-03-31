@@ -16,6 +16,9 @@ from agent.utils.nodes import (
     limit_error,
 )
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import ToolNode
+from agent.utils.tools import clean_script_response
 
 # Load environment variables from .env file
 if not load_dotenv():
@@ -38,77 +41,167 @@ workflow = StateGraph(CustomState)
 # Add memory saver instance after the workflow definition
 memory_saver = MemorySaver()
 
+
+
+# Define the prompt template for Playwright
 prompt_template_playwright = ChatPromptTemplate(
     [
         (
             "system",
             """
-            You are a test script generator. Generate only a Python Playwright test script for the given HTML content and test steps, remember to wait for pages to load.
+            You are an expert QA automation engineer.
 
-            Test Steps:
+            Your task is to generate a **Python Playwright test** using the **pytest** framework.
+            
+            ---
+            
+            ### Analysis and Test Generation Process:
+            1. FIRST: Analyze the provided HTML to identify the most reliable selectors for each element.
+            2. SECOND: Determine the most appropriate locator strategy for each element.
+            3. THIRD: Generate a test with fallback mechanisms for unreliable elements.
+
+            ---
+
+            ### 📋 Test Details:
+            - **Test Steps**:
             {test_steps}
 
-            HTML Content:
+            - **HTML Content**:
             {html_content}
 
-            URL:
+            - **Target URL**:
             {url}
+
+            ---
+
+            ### ⚙️ Guidelines:
+
+            #### ✅ Imports
+            Start with:
+            ```python
+            import pytest
+            from playwright.sync_api import Page, expect
+            ```
+
+            #### 🧪 Test Function
+            ```python
+            def test_name(page: Page):
+            ```
+
+            #### Locator Strategy Decision Tree:
+            - For elements with data-testid: Use `page.get_by_test_id("...")`
+            - For interactive elements with accessible roles: Use `page.get_by_role("...", name="...")`
+            - For form elements with labels: Use `page.get_by_label("...")`
+            - For elements with unique text: Use `page.get_by_text("...", exact=True)`
+            - If multiple matching elements exist: Use parent context to narrow selection
             
-            Constraints:
-            - Use Playwright's best practices.
-            - Analyze the HTML content to identify the necessary selectors.
-            - Ensure the script is robust and handles common edge cases.
-            - Set appropriate timeouts for actions based on their complexity or 10s as default.
-            - Ensure the test cases run in headless mode.
-            """,
+            #### Resilient Test Pattern:
+            - Always include multiple ways to locate critical elements
+            - Use wait operations between all interactions
+            - Include retry logic for flaky elements
+            - Add comments explaining the locator strategy choices
+            - Lower the timeouts for faster retries: Use `timeout=10000` for locating elements when necessary
+            
+            #### 🧼 Output
+            Only return valid **Python code** using **pytest** and **Playwright**.  
+            **No explanations, markdown, or extra text.**
+
+            ---
+            """
         ),
         MessagesPlaceholder("messages"),
     ]
 )
 
 
-# Define the error prompt template
+
+
+
+# Define the error prompt template for Playwright
 error_prompt_playwright = ChatPromptTemplate(
     [
         (
             "system",
             """
-            Fix the following Playwright test script that produced an error.
-            
-            Current script:
+            You are an expert QA automation engineer.
+
+            Fix the following **Playwright test script** that produced an error.
+
+            ### 🔧 Problem Context:
+            - **Current Script**:
             {original_script}
-            
-            Current error:
+
+            - **Error Message**:
             {error_message}
 
-            Test Steps:
+            - **Test Steps**:
             {test_steps}
-            
-            HTML Content:
+
+            - **HTML Content**:
             {html_content}
 
-            URL:
+            - **Target URL**:
             {url}
+
+            ---
+
+            ### ⚙️ Guidelines for Fixing the Script:
             
-            Constraints:
-            - Generate only the corrected script without any explanations.
-            - Avoid solutions that failed in previous attempts.
-            - Analyze the HTML content to identify the necessary selectors.
-            - Set appropriate timeouts for actions based on their complexity or 10s as default.
-            - Ensure the test cases run in headless mode.
-            """,
+            #### 🔍 Common causes for Playwright errors:
+            - Element not found or hidden
+            - Multiple elements matching
+
+            #### 🔍 Locator Improvements
+            1. Use the **most specific locators available**, in this order:
+                - `page.get_by_test_id("...")` (preferred)
+                - `page.get_by_role("...", name="...", exact=True)`
+                - `page.get_by_label("...")`
+                - `page.get_by_placeholder("...")`
+                - `page.get_by_alt_text("...")`
+                - `page.get_by_title("...")`
+                - `page.get_by_text("...", exact=True)` - **Only use this if no other option uniquely identifies the element.**
+            2. Avoid generic locators like `button`, `a`, `div`, or `:root`.
+            3. For **hidden elements**, ensure necessary actions (e.g., clicking dropdowns, toggles) are performed first.
+            4. If locators match multiple elements, make them more specific using:
+                - Parent context (e.g., `section:has(...)`)
+                - Attribute filters (e.g., `data-testid`, `data-attribute`)
+                - Indexing only as a last resort (e.g., `.nth(0)`).
+            5. If `get_by_text("...")` matches multiple elements:
+                - Try `get_by_role(..., name=..., exact=True)` instead
+                - Use attributes like `data-testid`, `class`, or refine with parent locators
+                - Use `.nth(n)` **only if unavoidable**, and **only with a comment** explaining why
+
+            #### ⏳ Handling Timeouts
+            - For elements not found, ensure:
+                - Lower the default timeout: `page.wait_for_selector("selector", timeout=10000)`
+                - Proper waiting: `expect(locator).to_be_visible(timeout=10000)`
+                - Element readiness: `locator.scroll_into_view_if_needed()`
+                - Consider increasing the timeout in case of complex UI loads, but prioritize shorter timeouts where possible.
+
+            #### 🧪 Output Requirements
+            - Return ONLY the corrected Python script using **pytest** and **Playwright**.
+            - DO NOT include any explanations, markdown formatting, or additional text.
+            - DO NOT include phrases like "Here is the corrected script" or similar.
+            - Start directly with the Python code, beginning with imports.
+            - Ensure all locators are improved and errors are addressed.
+            - Use clean, readable formatting for all Playwright code.
+
+            ---
+            """
         )
     ]
 )
 
-# Define the prompt template
+
+
+
+
+# Define the prompt template for Selenium
 prompt_template_selenium = ChatPromptTemplate(
     [
         (
             "system",
             """
-             You are a Selenium test script generator that produces only Java-based test scripts using best practices.
-
             Generate a Java Selenium test script based on the provided HTML content, URL, and test steps.
             Test Steps:
             {test_steps}
@@ -133,14 +226,13 @@ prompt_template_selenium = ChatPromptTemplate(
     ]
 )
 
-
-# Define the error prompt template
+# Define the error prompt template for Selenium
 error_prompt_selenium = ChatPromptTemplate(
     [
         (
             "system",
             """
-             You are a Selenium test script debugger. Your task is to fix the following Selenium test script that encountered an error. Fix the following Selenium test script that produced an error.
+            You are a Selenium test script debugger. Your task is to fix the following Selenium test script that encountered an error.
             
             Current script:
             {original_script}
@@ -300,3 +392,6 @@ try:
     graph = workflow.compile()
 except Exception as e:
     raise RuntimeError(f"Failed to compile workflow: {str(e)}")
+
+# Export the graph
+__all__ = ["graph"]

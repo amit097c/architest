@@ -6,6 +6,7 @@ from langgraph.types import StreamWriter
 import platform
 import re
 import shutil
+from rag import rag_manager
 
 # Function defined to invoke the LLM model with its configuration
 def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium, prompt_template_playwright_js, writer: StreamWriter):
@@ -14,33 +15,31 @@ def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium,
     framework = state["framework"]
     language = state["language"]
     
+    # Get base prompt template
     if framework == "playwright":
-        # Choose prompt based on language
-        if language == "javascript":
-            prompt = prompt_template_playwright_js.invoke({
-                "test_steps": state["test_steps"],
-                "html_content": state["html_content"],
-                "url": state["url"],
-                "messages": state["messages"],
-            })
-        else:  # python
-            prompt = prompt_template_playwright.invoke({
-                "test_steps": state["test_steps"],
-                "html_content": state["html_content"],
-                "url": state["url"],
-                "messages": state["messages"],
-            })
-    
-    elif framework == "selenium":
-        # Selenium only supports Java for now
-        prompt = prompt_template_selenium.invoke({
+        base_prompt = prompt_template_playwright.invoke({
+            "test_steps": state["test_steps"],
+            "html_content": state["html_content"],
+            "url": state["url"],
+            "messages": state["messages"],
+        })
+    else:  # selenium
+        base_prompt = prompt_template_selenium.invoke({
             "test_steps": state["test_steps"],
             "html_content": state["html_content"],
             "url": state["url"],
             "messages": state["messages"],
         })
     
-    response = llm.invoke(prompt)
+    # Enhance prompt with RAG context
+    enhanced_prompt = rag_manager.enhance_prompt(
+        framework=framework,
+        test_steps=state["test_steps"],
+        html_content=state["html_content"],
+        base_prompt=base_prompt
+    )
+    
+    response = llm.invoke(enhanced_prompt)
     cleaned_content = clean_script_response(response.content)
     print(f"generated {framework} {language} script: {cleaned_content}")
     
@@ -56,31 +55,12 @@ def execute_playwright_script(state, writer: StreamWriter):
     print(script_content)
     print("=====================\n")
 
-    # Write the script to a temporary file with its wrapper depending on the script type
+    # Write the script to a temporary file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-        if "async def" in script_content:
-            wrapper_script = f"""
-import asyncio
-from playwright.async_api import async_playwright
-{script_content}
-
-test_func = [f for f in locals().values() if callable(f) and f.__name__.startswith('test_')][0]
-asyncio.run(test_func())
-"""
-        else:
-            wrapper_script = f"""
-from playwright.sync_api import sync_playwright
-{script_content}
-"""
-        f.write(wrapper_script)
-        #f.write(script_content)
+        f.write(script_content)
         temp_path = f.name
 
     try:
-        # Install dependencies in the current Python environment
-        # subprocess.run(["pip", "install", "playwright"], check=True, capture_output=True)
-        # subprocess.run(["playwright", "install", "chromium"], check=True, capture_output=True)
-        
         writer({"type": "info", "message": "Executing test script"})
         
         # Run the script with shell=True to ensure proper execution
@@ -104,6 +84,17 @@ from playwright.sync_api import sync_playwright
             print("\n=== Execution Error ===")
             print(error_output)
             print("=====================\n")
+            
+            # Store failed test in vector store
+            rag_manager.store_test_result(
+                framework="playwright",
+                test_script=script_content,
+                test_steps=state["test_steps"],
+                html_content=state["html_content"],
+                success=False,
+                error_message=error_output
+            )
+            
             state["messages"].append(
                 {
                     "role": "system",
@@ -112,7 +103,6 @@ from playwright.sync_api import sync_playwright
             )
             state["has_errors"] = True
             state["error_message"] = error_output
-        # If the process returned successfully
         else:
             # Send the success message to the frontend
             writer({"type": "success", "message": "Tests executed successfully"})
@@ -121,11 +111,20 @@ from playwright.sync_api import sync_playwright
             print("\n=== Success ===")
             print("Script executed without errors")
             print("=============\n")
+            
+            # Store successful test in vector store
+            rag_manager.store_test_result(
+                framework="playwright",
+                test_script=script_content,
+                test_steps=state["test_steps"],
+                html_content=state["html_content"],
+                success=True
+            )
+            
             state["messages"].append(
                 {"role": "system", "content": "Script executed successfully"}
             )
-        #chrome_stability_test(script_content,state)
-
+            
             # For executing the script in chrome for Chrome test stability check
             stability_check, stability_message = execute_chrome_script(state["last_script"])
             state["messages"].append({"role": "system", "content": stability_message})
@@ -380,10 +379,10 @@ def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_seleniu
         print("\nMax retries reached. Stopping further refinements.")
 
         return {
-        **state,
-        "messages": [{"role": "system", "content": "Test generation failed. Max retries reached."}],
-        "stop_execution": True,
-        "error_message": "Max retries reached",
+            **state,
+            "messages": [{"role": "system", "content": "Test generation failed. Max retries reached."}],
+            "stop_execution": True,
+            "error_message": "Max retries reached",
         }
     
     else:
@@ -449,12 +448,12 @@ def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_seleniu
             response = llm.invoke(prompt)
             cleaned_content = clean_script_response(response.content)
 
-            return {
-                **state,
-                "messages": [{"role": "assistant", "content": cleaned_content}],
-                "has_errors": False,
-                "error_message": None,
-            }
+        return {
+            **state,
+            "messages": [{"role": "assistant", "content": cleaned_content}],
+            "has_errors": False,
+            "error_message": None,
+        }
 
 # Function defined to clear the memory after a succesful script execution
 def clear_memory(state):

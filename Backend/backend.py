@@ -19,13 +19,16 @@ from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from get_html import get_html, count_tokens
+from get_html import clean_html, extract_automation_elements, get_html, count_tokens, optimize_html_for_llm
 from clean_html import clean_html_for_tests
 from html_processor import HTMLProcessor
 from sse_starlette.sse import EventSourceResponse
 import json
 import aiohttp
 import requests
+import asyncio
+import time
+from datetime import datetime
 
 app = FastAPI()
 html_processor = HTMLProcessor()
@@ -51,30 +54,50 @@ app.add_middleware(
 
 @app.post("/send_test")
 async def send_test(request: TestRequest):
-    # Extract HTML for each selected page
-    page_contents = []
-    total_tokens = 0
+    start_time = time.time()
+    print(f"\nStarting URL processing at {datetime.now().strftime('%H:%M:%S')}")
 
-    for url in request.url:
-        html_content = get_html(url)  # Fetch HTML
-        cleaned_html = clean_html_for_tests(html_content)  # Clean HTML
-        # processed_html = html_processor.process_html(cleaned_html)  # Process HTML
+    async def process_url(url):
+        url_start_time = time.time()
+        html_content = await get_html(url)  # Fetch HTML
+        cleaned_html = clean_html(html_content)  # Clean HTML
+        processed_html = extract_automation_elements(cleaned_html)  # Process HTML
+        optimized_html = optimize_html_for_llm(processed_html)
         
-        combined_html_text = str(cleaned_html)
+        combined_html_text = str(optimized_html)
         token_count = count_tokens(combined_html_text, model="gpt-4")
-        print(f"{url} => {token_count} tokens")
-        total_tokens += token_count
-        # Store structured data
-        page_contents.append({"url": url, "html": cleaned_html})
+        url_end_time = time.time()
+        url_duration = url_end_time - url_start_time
+        print(f"{url} => {token_count} tokens (processed in {url_duration:.2f} seconds)")
+        return {
+            "url": url,
+            "html_elements": optimized_html,
+            "token_count": token_count,
+            "processing_time": url_duration
+        }
 
+    # Process all URLs concurrently using asyncio.gather
+    results = await asyncio.gather(*[process_url(url) for url in request.url])
+    
+    # Calculate total tokens and processing times
+    total_tokens = sum(result["token_count"] for result in results)
+    total_time = time.time() - start_time
+    avg_time_per_url = total_time / len(request.url)
+    
+    print(f"\nProcessing Summary:")
+    print(f"Total URLs processed: {len(request.url)}")
     print(f"Total tokens: {total_tokens}")
+    print(f"Total processing time: {total_time:.2f} seconds")
+    print(f"Average time per URL: {avg_time_per_url:.2f} seconds")
+    print(f"Concurrent processing speedup: {len(request.url) * avg_time_per_url / total_time:.2f}x")
+
     # Prepare the payload to send to the llm server
     payload = {
         "url": request.url[0],
         "test_steps": request.test_steps,
-        "html_content": page_contents,
+        "html_content": [{"url": result["url"], "html": result["html_elements"]} for result in results],
         "framework": request.framework,
-        "language": request.language,  # Add this line
+        "language": request.language,
     }
 
     # Send the payload to the llm server
