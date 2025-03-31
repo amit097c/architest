@@ -36,6 +36,7 @@ const ArchiTest: React.FC = () => {
   // State
   const [url, setUrl] = useState<string>("");
   const [testSteps, setTestSteps] = useState<string>("");
+  const [maxRetries, setMaxRetries] = useState<number>(10);
   const [framework, setFramework] = useState<Framework>("playwright");
   const [testScript, setTestScript] = useState<string>("");
   const [status, setStatus] = useState<TestStatus>("idle");
@@ -192,6 +193,7 @@ const ArchiTest: React.FC = () => {
       test_steps: testSteps, // Ensure test_steps matches API expectations
       framework: framework,
       language: language,
+      max_retries: maxRetries,
     }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);
@@ -254,6 +256,8 @@ const ArchiTest: React.FC = () => {
             setUrl={setUrl}
             testSteps={testSteps}
             setTestSteps={setTestSteps}
+            maxRetries={maxRetries}
+            setMaxRetries={setMaxRetries}
             framework={framework}
             setFramework={setFramework}
             language={language}

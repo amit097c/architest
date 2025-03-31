@@ -42,7 +42,10 @@ async def generate_tests(request: Request):
         "framework": data.get("framework", "playwright"),
         "language": data.get("language", "python"),  # Python language as default
         "last_script": data.get("last_script", None),
+        "max_retries": int(data.get("max_retries", 10)),
     }
+    print("Initial state sent to LangGraph:")
+    print(json.dumps(state_update, indent=2))
 
     config = {"configurable": {"thread_id": "abc123"}}
 

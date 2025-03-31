@@ -17,3 +17,4 @@ class CustomState(TypedDict):
     framework: Optional[str]
     language: Optional[str]  # Add this line
     last_script: Optional[str] = None
+    max_retries: Optional[int] = None

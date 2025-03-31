@@ -43,7 +43,9 @@ def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium,
     cleaned_content = clean_script_response(response.content)
     print(f"generated {framework} {language} script: {cleaned_content}")
     
-    return {"messages": [{"role": "assistant", "content": cleaned_content}]}
+    return {"messages": [{"role": "assistant", "content": cleaned_content}],
+            "max_retries": state["max_retries"],
+    }
 
 # Function defined to execute the Playwright script
 def execute_playwright_script(state, writer: StreamWriter):
@@ -364,10 +366,12 @@ def handle_framework(state):
 
 def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_selenium, error_prompt_playwright_js, writer: StreamWriter):
     state["retry_count"] = state.get("retry_count", 0) + 1
+    max_retries = state["max_retries"]
 
-    writer({"type": "info", "message": f"Refining test script (Attempt {state['retry_count']}/10)"})
+    writer({"type": "info", "message": f"Refining test script (Attempt {state['retry_count']}/{max_retries})"})
+    print("Retry count:", state["retry_count"], "/", max_retries)
 
-    if state["retry_count"] >= 10:
+    if state["retry_count"] >= max_retries:
         errors = state["messages"][-1].content if state["messages"] else "No script generated."
         writer({
             "type": "error", 
@@ -411,6 +415,7 @@ def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_seleniu
                 "messages": [{"role": "assistant", "content": cleaned_content}],
                 "has_errors": False,
                 "error_message": None,
+                "max_retries": state["max_retries"],
             }
         elif state["framework"] == "playwright" and state["language"] == "javascript":
             print("inside playwright js retry")
@@ -432,6 +437,7 @@ def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_seleniu
                 "messages": [{"role": "assistant", "content": cleaned_content}],
                 "has_errors": False,
                 "error_message": None,
+                "max_retries": state["max_retries"],
             }
         elif state["framework"] == "selenium":
             print("inside selenium retry")
@@ -448,12 +454,13 @@ def retry_with_errors(state, llm,  error_prompt_playwright, error_prompt_seleniu
             response = llm.invoke(prompt)
             cleaned_content = clean_script_response(response.content)
 
-        return {
-            **state,
-            "messages": [{"role": "assistant", "content": cleaned_content}],
-            "has_errors": False,
-            "error_message": None,
-        }
+            return {
+                **state,
+                "messages": [{"role": "assistant", "content": cleaned_content}],
+                "has_errors": False,
+                "error_message": None,
+                "max_retries": state["max_retries"],
+            }
 
 # Function defined to clear the memory after a succesful script execution
 def clear_memory(state):
@@ -465,5 +472,5 @@ def clear_memory(state):
         "execution_time": None,
         "success_rate": None,
         "error_rate": None,
-        "retry_count": None
+        "retry_count": None,
     }

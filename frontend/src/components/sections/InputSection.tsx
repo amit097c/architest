@@ -14,6 +14,8 @@ interface InputSectionProps {
   setUrl: (url: string) => void;
   testSteps: string;
   setTestSteps: (steps: string) => void;
+  maxRetries: number;
+  setMaxRetries: Dispatch<SetStateAction<number>>;
   framework: Framework;
   setFramework: Dispatch<SetStateAction<Framework>>;
   isMultiPage: boolean;
@@ -33,6 +35,8 @@ const InputSection: React.FC<InputSectionProps> = ({
   setUrl,
   testSteps,
   setTestSteps,
+  maxRetries,
+  setMaxRetries,
   framework,
   setFramework,
   isMultiPage,
@@ -147,6 +151,26 @@ const InputSection: React.FC<InputSectionProps> = ({
             onChange={(e) => setTestSteps(e.target.value)}
             rows={8}
           />
+        </div>
+
+        {/* Max Retries Input */}
+        <div className="space-y-2">
+          <label htmlFor="max-retries" className="text-sm font-medium">Max Refinement Attempts</label>
+          <Select
+            value={maxRetries.toString()}
+            onValueChange={(value) => setMaxRetries(Number(value))}
+          >
+            <SelectTrigger id="max-retries">
+              <SelectValue placeholder="Select max retries" />
+            </SelectTrigger>
+            <SelectContent>
+              {[...Array(25)].map((_, i) => (
+                <SelectItem key={i+1} value={(i+1).toString()}>
+                  {i + 1}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Framework and Language Options */}

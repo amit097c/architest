@@ -39,7 +39,8 @@ class TestRequest(BaseModel):
     url: List[str]
     test_steps: str
     framework: str
-    language: str  # Add this line
+    language: str
+    max_retries: int
 
 
 # Add CORS middleware
@@ -90,15 +91,20 @@ async def send_test(request: TestRequest):
     print(f"Total processing time: {total_time:.2f} seconds")
     print(f"Average time per URL: {avg_time_per_url:.2f} seconds")
     print(f"Concurrent processing speedup: {len(request.url) * avg_time_per_url / total_time:.2f}x")
+    print("Max retries received from frontend:", request.max_retries)
 
     # Prepare the payload to send to the llm server
     payload = {
         "url": request.url[0],
         "test_steps": request.test_steps,
         "html_content": [{"url": result["url"], "html": result["html_elements"]} for result in results],
+        "max_retries": request.max_retries,
         "framework": request.framework,
         "language": request.language,
     }
+
+    print("Payload sent to LLM server:")
+    print(json.dumps(payload, indent=2))
 
     # Send the payload to the llm server
     llm_server_url = "http://localhost:8000/generate_tests"  # Adjust the URL if needed
