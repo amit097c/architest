@@ -24,6 +24,21 @@
      ```bash
       npm install
       ```
+4. **For Java with Selenium execution**  
+   - Create a folder `llm/agent/utils/java_utils` and copy the below installed drivers inside `java_utils`  
+   - And install ChromeDriver and Chrome:  
+     [https://googlechromelabs.github.io/chrome-for-testing/](https://googlechromelabs.github.io/chrome-for-testing/)  
+   - And Selenium:  
+     [https://www.selenium.dev/downloads/](https://www.selenium.dev/downloads/)
+
+5. **For JavaScript with Playwright execution**  
+   - Create a folder `llm/agent/utils/javascript_utils`  
+   - And run the below commands inside the `javascript_utils` folder:
+     ```bash
+     npm init -y
+     npm install -D @playwright/test
+     npx playwright install
+     ```
 
 
 # Running the `ArchiTest` Project
