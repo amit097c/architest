@@ -16,3 +16,4 @@ playwright      # Used for browser automation
 asyncio         # Used for async programming
 chromadb        # Used for vector database
 pytest-playwright
+sse_starlette
