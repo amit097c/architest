@@ -3,6 +3,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, Save } from "lucide-react";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface OutputSectionProps {
   testScript: string;
@@ -15,6 +17,26 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   iterations,
   addStatusEvent
 }) => {
+  // Function to determine language based on file extension or content
+  const getLanguage = (code: string): string => {
+    if (code.includes('from playwright import')) return 'python';
+    if (code.includes('import { test }')) return 'typescript';
+    if (code.includes('import org.openqa.selenium')) return 'java';
+    return 'javascript';
+  };
+
+  const syntaxTheme = {
+    ...oneLight,
+    'pre[class*="language-"]': {
+      ...oneLight['pre[class*="language-"]'],
+      background: 'transparent',
+    },
+    'code[class*="language-"]': {
+      ...oneLight['code[class*="language-"]'],
+      background: 'transparent',
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -36,7 +58,6 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             style={{ cursor: "pointer" }}
           >
             <Copy className="h-4 w-4" />
-            
           </Button>
           <Button
             variant="outline"
@@ -52,17 +73,33 @@ const OutputSection: React.FC<OutputSectionProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-80 w-full rounded-md border bg-gray-100">
-          {testScript ? (
-            <pre className="p-4 text-sm whitespace-pre-wrap break-words overflow-auto font-mono">
-              <code>{testScript}</code>
+        <div className="h-80 w-full overflow-auto rounded-md w-full rounded-md border">
+          <div className="w-max min-w-full">
+            <pre className="text-sm whitespace-pre overflow-auto max-w-none">
+              {testScript ? (
+                <div className="p-4">
+                  <SyntaxHighlighter
+                    language={getLanguage(testScript)}
+                    style={syntaxTheme}
+                    customStyle={{
+                      margin: 0,
+                      fontSize: '0.875rem',
+                      backgroundColor: 'transparent',
+                    }}
+                    wrapLines={true}
+                    showLineNumbers={true}
+                  >
+                    {testScript}
+                  </SyntaxHighlighter>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <p>Your generated test script will appear here</p>
+                </div>
+              )}
             </pre>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Your generated test script will appear here</p>
-            </div>
-          )}
-        </ScrollArea>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

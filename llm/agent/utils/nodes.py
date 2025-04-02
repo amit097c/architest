@@ -240,7 +240,7 @@ def execute_selenium_script(state, writer: StreamWriter):
 
         if run_process.returncode != 0:
             print("Execution failed:", run_process.stderr)
-            writer({"type": "error", "message": "Execution failed", "errors": run_process.stderr})
+            writer({"type": "error", "message": "Test execution failed", "errors": run_process.stderr})
             writer({"type": "script", "message": state["last_script"]})
             state["messages"].append({"role": "system", "content": f"Script execution failed: {run_process.stderr}"})
             state["has_errors"] = True

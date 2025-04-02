@@ -93,7 +93,7 @@ const ArchiTest: React.FC = () => {
           errorDetails: "• Your test steps may need to be more specific\n• The webpage elements might not be accessible\n• The webpage structure might have changed\n\nPlease verify your test steps and check if the webpage is accessible.",
         });
       }
-      else if (newEvent.message === "Test execution failed") {
+      else if (newEvent.message === "Test execution failed" || newEvent.message === "Compilation failed") {
         setStatusTestErrors({
           message: newEvent.errors
         });
