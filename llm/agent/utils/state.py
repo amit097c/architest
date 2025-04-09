@@ -15,6 +15,14 @@ class CustomState(TypedDict):
     error_rate: Optional[float]
     retry_count: Optional[int]
     framework: Optional[str]
-    language: Optional[str]  # Add this line
+    language: Optional[str]
     last_script: Optional[str] = None
     max_retries: Optional[int] = None
+    # Fields for step-by-step execution
+    current_step_index: Optional[int] = 0
+    current_step: Optional[str] = None
+    steps_list: Optional[list] = None
+    completed_steps: Optional[list] = []
+    accumulated_script: Optional[str] = None
+    generated_selectors: Optional[dict] = {}
+    api_results: Optional[dict] = {}  # Kept for future compatibility

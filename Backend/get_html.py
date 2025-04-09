@@ -32,7 +32,23 @@ async def init_browser():
     global _browser, _playwright
     if _browser is None:
         _playwright = await async_playwright().start()
-        _browser = await _playwright.chromium.launch(headless=True)
+        try:
+            # For Windows compatibility
+            _browser = await _playwright.chromium.launch(
+                headless=True,
+                # On Windows, we may need to handle process creation differently
+                executable_path=None  # Let Playwright find the proper executable
+            )
+        except NotImplementedError:
+            # Handle Windows-specific subprocess issue
+            import sys
+            if sys.platform == "win32":
+                print("Windows detected. Make sure Playwright browsers are installed.")
+                print("Try running: python -m playwright install chromium")
+                return None
+            else:
+                # Re-raise for non-Windows platforms
+                raise
 
 async def close_browser():
     """Close the global browser instance."""
@@ -175,6 +191,11 @@ def clean_html(raw_html):
     """
     Minimally clean the HTML while preserving all structure important for testing
     """
+    # Handle None or empty input
+    if raw_html is None or not raw_html:
+        print("Warning: Received empty or None HTML content")
+        return "<html><body><p>No content was retrieved. Please check server logs.</p></body></html>"
+    
     soup = BeautifulSoup(raw_html, "html.parser")
     
     # Remove only script and style tags
@@ -229,6 +250,12 @@ async def get_html_async(url):
     try:
         # Ensure browser is initialized
         await init_browser()
+        
+        # Check if browser initialization failed
+        if _browser is None:
+            print("Failed to initialize browser. Make sure Playwright is properly installed.")
+            print("On Windows, run: python -m playwright install chromium")
+            return "<html><body><p>Error: Browser initialization failed. Please check server logs.</p></body></html>"
         
         # Create a new context with optimized settings
         context = await _browser.new_context(

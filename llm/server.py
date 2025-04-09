@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 import json
 import asyncio
-from agent.agent import graph
+from agent.agent import graph, step_graph
 
 app = FastAPI()
 
@@ -24,13 +24,16 @@ async def generate_tests(request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
 
     # Validate required fields
-    required_fields = ["url", "test_steps", "html_content","framework"]
+    required_fields = ["url", "test_steps", "html_content", "framework"]
     for field in required_fields:
         if field not in data:
             raise HTTPException(
                 status_code=400, detail=f"Missing required field: {field}"
             )
 
+    # Get the generation approach (step-by-step or legacy)
+    approach = data.get("approach", "step_by_step")
+    
     # Initialize state with required fields
     state_update = {
         "messages": [],
@@ -51,13 +54,17 @@ async def generate_tests(request: Request):
 
     # Start the test generation process
     try:
-        print("Starting test generation...")
+        print(f"Starting test generation using {approach} approach...")
+        
+        # Choose the appropriate graph based on the approach
+        selected_graph = step_graph if approach == "step_by_step" else graph
+        
         # Process the stream and push updates to the queue
-        async for chunk in graph.astream(state_update, config, stream_mode="custom"):
+        async for chunk in selected_graph.astream(state_update, config, stream_mode="custom"):
             # Add each chunk of data to the global queue
             await data_queue.put(chunk)
             print(f"Added to queue: {chunk}")
-        return {"status": "Test generation started successfully"}
+        return {"status": "Test generation started successfully", "approach": approach}
     except Exception as e:
         print("Test generation failed:", str(e))
         raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
@@ -79,3 +86,30 @@ async def stream_test_results():
             yield f"{json.dumps({'error': str(e)})}\n\n"
 
     return EventSourceResponse(event_publisher())
+
+# Add documentation for the API
+@app.get("/")
+async def root():
+    return {
+        "name": "ArchiTest API",
+        "description": "API for generating test scripts using ArchiTest",
+        "version": "1.0.0",
+        "endpoints": [
+            {
+                "path": "/generate_tests",
+                "method": "POST",
+                "description": "Generate test scripts",
+                "required_fields": ["url", "test_steps", "html_content", "framework"],
+                "optional_fields": [
+                    "approach", # 'legacy' (default) or 'step_by_step'
+                    "language", # 'python' (default) or 'java' or 'javascript'
+                    "max_retries" # default: 10
+                ]
+            },
+            {
+                "path": "/stream_test_results",
+                "method": "GET",
+                "description": "Stream test generation results using Server-Sent Events (SSE)"
+            }
+        ]
+    }

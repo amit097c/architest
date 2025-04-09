@@ -10,3 +10,6 @@ playwright      # Used for browser automation
 asyncio         # Used for async programming
 chromadb        # Used for vector database
 pytest-playwright
+langchain-openai>=0.0.2
+langchain-core>=0.1.9
+diskcache>=5.6.3
