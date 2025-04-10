@@ -51,6 +51,8 @@ async def generate_tests(request: Request):
     print(json.dumps(state_update, indent=2))
 
     config = {"configurable": {"thread_id": "abc123"}}
+    
+    last_chunk = None
 
     # Start the test generation process
     try:
@@ -64,7 +66,12 @@ async def generate_tests(request: Request):
             # Add each chunk of data to the global queue
             await data_queue.put(chunk)
             print(f"Added to queue: {chunk}")
-        return {"status": "Test generation started successfully", "approach": approach}
+            
+            last_chunk = chunk
+            
+        script = last_chunk['message'] if isinstance(last_chunk, dict) and 'message' in last_chunk else last_chunk
+            
+        return {"status": "Test generation successfully completed", "script": script}
     except Exception as e:
         print("Test generation failed:", str(e))
         raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")

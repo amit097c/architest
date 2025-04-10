@@ -43,20 +43,112 @@
 
 # Running the `ArchiTest` Project
 
-1. **Run the LLM Server**
-   - Navigate to the LLM folder from the architest project folder
-     ```bash
-      uvicorn server:app --reload
-      ```
-
-2. **Run the Backend Server**
+1. **Run the Backend Server**
    - Navigate to the Backend folder from the architest project folder
      ```bash
      uvicorn backend:app --reload --port 8001
      ```
 
-3. **Run the Frontend**
+2. **Run the Frontend**
    - Navigate to the Frontend folder from the architest project folder
      ```bash
      npm run dev
      ```
+
+# Using the CLI for CI/CD
+
+ArchiTest provides a command-line interface that can be used in CI/CD pipelines to generate tests without using the frontend.
+
+1. **Make the CLI script executable** (Unix/Linux)
+   ```bash
+   chmod +x cli.py
+   ```
+
+2. **Basic Usage**
+   ```bash
+   python cli.py --url https://example.com
+   ```
+
+3. **Advanced Options**
+   ```bash
+   python cli.py --url https://example.com \
+                 --test-steps "1. Navigate to the login page. 2. Enter username and password. 3. Click login button." \
+                 --framework playwright \
+                 --language python \
+                 --max-retries 3 \
+                 --output generated_tests/example_test.py
+   ```
+
+4. **Using a File for Test Steps**
+   You can save your test steps in a text file and pass the file path:
+   ```bash
+   python cli.py --url https://example.com --test-steps test_steps.txt
+   ```
+
+5. **CLI Arguments**
+   
+   | Argument | Description | Default | Required |
+   |----------|-------------|---------|----------|
+   | `--url` | The URL to generate tests for | - | Yes |
+   | `--test-steps` | Test steps description or path to file containing test steps | Empty string | No |
+   | `--framework` | Testing framework to use (`playwright` or `selenium`) | `playwright` | No |
+   | `--language` | Programming language for tests (`python`, `javascript`, or `java`) | `python` | No |
+   | `--max-retries` | Maximum number of test retries | 3 | No |
+   | `--output` | Output file to save generated tests | None (prints to console) | No |
+
+6. **Using the Shell Script**
+   
+   The included shell script provides additional functionality, like automatic server startup:
+   
+   ```bash
+   ./ci_generate_tests.sh --url https://example.com --steps test_steps.txt
+   ```
+   
+   For more options:
+   ```bash
+   ./ci_generate_tests.sh --help
+   ```
+
+7. **Example CI/CD Integration (GitHub Actions)**
+   
+   ```yaml
+   name: Generate Website Tests
+   
+   on:
+     schedule:
+       - cron: '0 0 * * *'  # Daily at midnight
+     workflow_dispatch:  # Manual trigger
+   
+   jobs:
+     generate-tests:
+       runs-on: ubuntu-latest
+       
+       steps:
+       - name: Checkout repository
+         uses: actions/checkout@v2
+         
+       - name: Set up Python
+         uses: actions/setup-python@v2
+         with:
+           python-version: '3.10'
+           
+       - name: Install dependencies
+         run: |
+           pip install -r requirements.txt
+           
+       - name: Start backend server
+         run: |
+           cd Backend
+           nohup uvicorn backend:app --host 0.0.0.0 --port 8001 &
+           sleep 5  # Wait for server to start
+           
+       - name: Generate tests
+         run: |
+           python cli.py --url ${{ secrets.TEST_URL }} --test-steps test_scenarios/login.txt --output generated_tests/login_test.py
+           
+       - name: Archive generated tests
+         uses: actions/upload-artifact@v2
+         with:
+           name: generated-tests
+           path: generated_tests/
+   ```
