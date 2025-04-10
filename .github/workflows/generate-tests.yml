@@ -1,0 +1,57 @@
+name: Generate Tests
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Start LLM Server
+      run: |
+        cd llm
+        nohup python -m uvicorn server:app --host 0.0.0.0 --port 8000 > llm_server.log 2>&1 &
+        sleep 15
+    
+    - name: Start Backend Server
+      run: |
+        cd Backend
+        nohup python -m uvicorn backend:app --host 0.0.0.0 --port 8001 > server.log 2>&1 &
+        sleep 10
+    
+    - name: Create output directory
+      run: mkdir -p generated_tests
+    
+    - name: Make scripts executable
+      run: |
+        chmod +x cli.py
+        chmod +x ci_generate_tests.sh
+    
+    - name: Generate tests
+      run: |
+        ./ci_generate_tests.sh --url https://apple.com/ca/ --steps example_test_steps.txt --output-dir generated_tests --test-name apple
+    
+    - name: Commit generated tests
+      if: success()
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add generated_tests/
+        git commit -m "Auto-generate tests for Apple Canada website" || echo "No changes to commit"
+        git push 
