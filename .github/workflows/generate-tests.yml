@@ -23,18 +23,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Start LLM Server
-      run: |
-        cd llm
-        nohup python -m uvicorn server:app --host 0.0.0.0 --port 8000 > llm_server.log 2>&1 &
-        sleep 15
-    
-    - name: Start Backend Server
-      run: |
-        cd Backend
-        nohup python -m uvicorn backend:app --host 0.0.0.0 --port 8001 > server.log 2>&1 &
-        sleep 10
-    
     - name: Create output directory
       run: mkdir -p generated_tests
     
@@ -42,6 +30,39 @@ jobs:
       run: |
         chmod +x cli/cli.py
         chmod +x cli/ci_generate_tests.sh
+    
+    - name: Start LLM Server
+      run: |
+        cd llm
+        python -m uvicorn server:app --host 0.0.0.0 --port 8000 &
+        echo "LLM server started"
+        cd ..
+        # Verify server is up
+        sleep 10
+        curl -s http://localhost:8000/ || echo "Warning: LLM server not responding"
+    
+    - name: Start Backend Server
+      run: |
+        cd Backend
+        python -m uvicorn backend:app --host 0.0.0.0 --port 8001 &
+        echo "Backend server started"
+        cd ..
+        # Verify server is up
+        sleep 10
+        curl -s http://localhost:8001/ || echo "Warning: Backend server not responding"
+    
+    - name: Check Server Status
+      run: |
+        echo "Checking LLM server status:"
+        curl -s http://localhost:8000/ || echo "LLM server not responding"
+        echo "Checking Backend server status:"
+        curl -s http://localhost:8001/ || echo "Backend server not responding"
+        # List running processes
+        echo "Running processes:"
+        ps aux | grep -E 'uvicorn|python'
+        # Check if ports are in use
+        echo "Ports in use:"
+        netstat -tuln | grep -E '8000|8001' || echo "No ports found"
     
     - name: Generate tests
       run: |
