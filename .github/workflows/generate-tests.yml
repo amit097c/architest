@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.12'
     
     - name: Install dependencies
       run: |
@@ -38,7 +38,7 @@ jobs:
         echo "LLM server started"
         cd ..
         # Verify server is up
-        sleep 10
+        sleep 15
         curl -s http://localhost:8000/ || echo "Warning: LLM server not responding"
     
     - name: Start Backend Server
