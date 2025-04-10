@@ -22,6 +22,9 @@ FRAMEWORK="playwright"
 LANGUAGE="python"
 BACKEND_PORT=8001
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 # Help message
 show_help() {
   echo -e "${BOLD}ArchiTest CI/CD Script${RESET}"
@@ -160,7 +163,7 @@ fi
 
 # Run CLI to generate tests
 echo -e "\n${PENDING} Generating tests..."
-if python cli.py --url "$URL" --test-steps "$STEPS_FILE" --framework "$FRAMEWORK" --language "$LANGUAGE" --max-retries "$MAX_RETRIES" --output "$OUTPUT_FILE"; then
+if python "${SCRIPT_DIR}/cli.py" --url "$URL" --test-steps "$STEPS_FILE" --framework "$FRAMEWORK" --language "$LANGUAGE" --max-retries "$MAX_RETRIES" --output "$OUTPUT_FILE"; then
   # Check if the test was generated successfully
   if [ -f "$OUTPUT_FILE" ]; then
     echo -e "${CHECK_MARK} Test generated successfully: ${BOLD}$OUTPUT_FILE${RESET}"
