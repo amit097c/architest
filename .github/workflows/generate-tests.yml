@@ -40,12 +40,12 @@ jobs:
     
     - name: Make scripts executable
       run: |
-        chmod +x cli.py
-        chmod +x ci_generate_tests.sh
+        chmod +x cli/cli.py
+        chmod +x cli/ci_generate_tests.sh
     
     - name: Generate tests
       run: |
-        ./ci_generate_tests.sh --url https://apple.com/ca/ --steps example_test_steps.txt --output-dir generated_tests --test-name apple
+        ./cli/ci_generate_tests.sh --url https://apple.com/ca/ --steps example_test_steps.txt --output-dir generated_tests --test-name apple
     
     - name: Commit generated tests
       if: success()
