@@ -28,10 +28,12 @@ from agent.utils.tools import clean_script_response
 if HAS_CACHE:
     from agent.utils.nodes import LLMCache
 
-# Load environment variables from .env file
-if not load_dotenv():
-    raise RuntimeError("Failed to load environment variables from .env file")
-
+# Check if running in GitHub Actions
+if not os.getenv("GITHUB_ACTIONS"):
+    # Load environment variables from .env file (for local testing)
+    if not load_dotenv():
+        raise RuntimeError("Failed to load environment variables from .env file")
+    
 # Initialize Azure OpenAI LLM
 try:
     # Try to initialize with cache if available
