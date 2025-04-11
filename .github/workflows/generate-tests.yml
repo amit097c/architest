@@ -33,6 +33,10 @@ jobs:
     
     - name: Start LLM Server
       env:
+        OPENAI_API_DEPLOYMENT: ${{ secrets.OPENAI_API_DEPLOYMENT }}
+        OPENAI_API_MODEL: ${{ secrets.OPENAI_API_MODEL }}
+        AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+        OPENAI_API_VERSION: ${{ secrets.OPENAI_API_VERSION }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         cd llm
