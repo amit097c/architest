@@ -40,7 +40,7 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         cd llm
-        python -m uvicorn server:app --host 0.0.0.0 --port 8000 &
+        python -m uvicorn server:app --host 0.0.0.0 --port 8000 --log-level debug &
         echo "LLM server started"
         cd ..
         # Verify server is up
