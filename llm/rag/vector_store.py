@@ -22,6 +22,7 @@ class VectorStoreManager:
             api_base=os.getenv("AZURE_OPENAI_ENDPOINT"),  # Azure OpenAI endpoint
             api_type="azure",
             api_version="2023-05-15",
+            deployment_id=os.getenv("OPENAI_API_DEPLOYMENT")
         )
         
         # Create or get collections for different frameworks
