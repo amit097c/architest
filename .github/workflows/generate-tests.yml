@@ -40,8 +40,10 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         cd llm
-        python -m uvicorn server:app --host 0.0.0.0 --port 8000 --log-level debug &
-        echo "LLM server started"
+        # Start the server with output to a log file
+        python -m uvicorn server:app --host 0.0.0.0 --port 8000 --log-level debug > llm_server.log 2>&1 &
+        LLM_PID=$!
+        echo "LLM server started with PID: $LLM_PID"
         cd ..
         # Verify server is up
         sleep 15
@@ -50,8 +52,9 @@ jobs:
     - name: Start Backend Server
       run: |
         cd Backend
-        python -m uvicorn backend:app --host 0.0.0.0 --port 8001 &
-        echo "Backend server started"
+        python -m uvicorn backend:app --host 0.0.0.0 --port 8001 > backend_server.log 2>&1 &
+        BACKEND_PID=$!
+        echo "Backend server started with PID: $BACKEND_PID"
         cd ..
         # Verify server is up
         sleep 10
@@ -73,6 +76,18 @@ jobs:
     - name: Generate tests
       run: |
         ./cli/ci_generate_tests.sh --url https://apple.com/ca/ --steps example_test_steps.txt --output-dir generated_tests --test-name apple
+    
+    - name: Display LLM Server Logs
+      if: always()
+      run: |
+        echo "==== LLM Server Logs ===="
+        cat llm/llm_server.log || echo "Could not find LLM server log"
+        
+    - name: Display Backend Server Logs
+      if: always()
+      run: |
+        echo "==== Backend Server Logs ===="
+        cat Backend/backend_server.log || echo "Could not find Backend server log"
     
     - name: Commit generated tests
       if: success()
