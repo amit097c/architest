@@ -26,3 +26,7 @@ class CustomState(TypedDict):
     accumulated_script: Optional[str] = None
     generated_selectors: Optional[dict] = {}
     api_results: Optional[dict] = {}  # Kept for future compatibility
+    jira_ticket_id: Optional[str] = None
+    jira_email: Optional[str] = None
+    jira_token: Optional[str] = None
+    jira_domain: Optional[str] = None
