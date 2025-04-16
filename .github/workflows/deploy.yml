@@ -11,11 +11,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Log in to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
     - name: Log in to ACR
       run: |
         echo ${{ secrets.ACR_PASSWORD }} | docker login teamxceedacr.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
