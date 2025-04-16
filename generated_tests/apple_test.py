@@ -26,6 +26,6 @@ def step_1_click_buy_macbook_air(page: Page):
 
 
 def step_2_verify_macbook_air_heading(page: Page):
-    heading = page.get_by_role("heading", name="Choose your new MacBook Air.")
+    heading = page.get_by_role("heading", name="Choose your new MacBook Air.", exact=True)
     expect(heading).to_be_visible(timeout=10000)
     return page
