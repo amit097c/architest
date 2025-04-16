@@ -26,12 +26,18 @@ jobs:
         docker compose -f docker-compose.prod.yml build
         docker compose -f docker-compose.prod.yml push
 
-    - name: Deploy to App Service
-      uses: azure/webapps-deploy@v2
+    - name: Azure login
+      uses: azure/login@v1
       with:
-        app-name: teamxceed-app
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        images: |
-          teamxceedacr.azurecr.io/architest/frontend:latest
-          teamxceedacr.azurecr.io/architest/backend:latest
-          teamxceedacr.azurecr.io/architest/llm:latest
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure Web App for Containers
+      run: |
+        az webapp config container set \
+          --name teamxceed-app \
+          --resource-group TeamXceed \
+          --multicontainer-config-type compose \
+          --multicontainer-config-file docker-compose.prod.yml \
+          --docker-registry-server-url https://teamxceedacr.azurecr.io \
+          --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
+          --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
