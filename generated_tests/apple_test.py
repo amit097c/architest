@@ -18,13 +18,16 @@ def test_main(page: Page):
 
 
 def step_1_click_buy_macbook_air(page: Page):
+    # Locate the "Buy" button in the macbook-air section using its accessible name
     buy_button = page.get_by_role("link", name="Buy, MacBook Air with M4 chip")
-    expect(buy_button).to_be_visible(timeout=10000)
-    buy_button.click()
+    expect(buy_button).to_be_visible(timeout=10000)  # Ensure the button is visible
+    expect(buy_button).to_be_enabled()  # Ensure the button is enabled
+    buy_button.click()  # Click the "Buy" button
     return page
 
 
 def step_2_verify_macbook_air_heading(page: Page):
-    heading = page.get_by_role("heading", name="Choose your new MacBook Air.")
-    expect(heading).to_be_visible(timeout=10000)
+    # Locate the heading "Choose your new MacBook Air." using its text content
+    heading = page.get_by_text("Choose your new MacBook Air.", exact=True)
+    expect(heading).to_be_visible(timeout=10000)  # Ensure the heading is visible
     return page
