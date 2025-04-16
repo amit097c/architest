@@ -26,13 +26,27 @@ jobs:
         docker compose -f docker-compose.prod.yml build
         docker compose -f docker-compose.prod.yml push
 
-    - name: Azure login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Install Azure CLI
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
     - name: Deploy to Azure Web App for Containers
       run: |
+        # Login with publish profile
+        publishProfileContent="${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}"
+        
+        # Extract credentials from publish profile XML
+        xmlString="$publishProfileContent"
+        userName=$(echo "$xmlString" | grep -oP '(?<=userName=")[^"]*' | head -1)
+        userPWD=$(echo "$xmlString" | grep -oP '(?<=userPWD=")[^"]*' | head -1)
+        
+        # Login with publish profile credentials
+        az login --service-principal \
+          --username "$userName" \
+          --password "$userPWD" \
+          --tenant $(echo "$userName" | cut -d '@' -f 2)
+        
+        # Deploy with docker-compose
         az webapp config container set \
           --name teamxceed-app \
           --resource-group TeamXceed \
