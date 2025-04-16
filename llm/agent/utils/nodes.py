@@ -489,7 +489,8 @@ def execute_step_script(state, writer: StreamWriter):
 
             # If this was the last step, send Jira success message and move ticket
             if state["current_step_index"] + 1 == len(state["steps_list"]):
-                if "SCRUM-" in state.get("jira_ticket_id", ""):
+                jira_id = state.get("jira_ticket_id")
+                if isinstance(jira_id, str) and "SCRUM-" in jira_id:
                     try:
                         add_comment_to_jira(state["jira_ticket_id"], "✅ Test script passed successfully via ArchiTest.", state["jira_email"], state["jira_token"], state["jira_domain"])
                         move_ticket_to_next_status(state["jira_ticket_id"], state["jira_email"], state["jira_token"], state["jira_domain"])
@@ -1093,6 +1094,10 @@ def clear_memory(state):
         "accumulated_script": None,
         "generated_selectors": {},
         "api_results": {},
+        "jira_ticket_id": None,
+        "jira_email": None,
+        "jira_token": None,
+        "jira_domain": None,
     }
 
 # Define custom cache using DiskCache when available
