@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Frontend service
+  frontend:
+    build:
+      context: ./frontend
+      target: ${ENV:-development}
+    ports:
+      - "3000:80"  # Production
+      - "${FRONTEND_PORT:-5173}:5173"  # Development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=${ENV:-development}
+      - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
+      - LLM_URL=http://llm:${LLM_PORT:-8000}
+
+  # Backend service
+  backend:
+    build:
+      context: ./Backend
+      target: ${ENV:-development}
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    volumes:
+      - ./Backend:/app
+    depends_on:
+      - llm
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV=${ENV:-development}
+      - LLM_URL=http://llm:${LLM_PORT:-8000}
+      - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
+      - FRONTEND_URL=http://frontend:${FRONTEND_PORT:-5173}
+
+  # LLM service
+  llm:
+    build:
+      context: ./llm
+      target: ${ENV:-development}
+    ports:
+      - "${LLM_PORT:-8000}:8000"
+    volumes:
+      - ./llm:/app
+      - ./llm/chroma_db:/app/chroma_db
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENV=${ENV:-development}
+      - LLM_URL=http://llm:${LLM_PORT:-8000}
+      - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
+      - FRONTEND_URL=http://frontend:${FRONTEND_PORT:-5173}
+
+  # CLI service - only built, not run as a service
+  cli:
+    build:
+      context: ./cli
+    volumes:
+      - ./cli:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
+      - LLM_URL=http://llm:${LLM_PORT:-8000}
+    # Not started automatically
+    profiles:
+      - cli-tools 

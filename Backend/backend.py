@@ -29,6 +29,7 @@ import requests
 import asyncio
 import time
 from datetime import datetime
+import os
 
 app = FastAPI()
 html_processor = HTMLProcessor()
@@ -46,7 +47,13 @@ class TestRequest(BaseModel):
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Adjust this to your frontend's URL
+    allow_origins=[
+        "http://localhost:5173",     # Development frontend
+        "http://localhost:3000",     # Production frontend (local testing)
+        "http://frontend",           # Docker internal frontend
+        "http://frontend:5173",      # Docker internal frontend (dev)
+        "http://frontend:80",        # Docker internal frontend (prod)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -107,7 +114,7 @@ async def send_test(request: TestRequest):
     print(json.dumps(payload, indent=2))
 
     # Send the payload to the llm server
-    llm_server_url = "http://localhost:8000/generate_tests"  # Adjust the URL if needed
+    llm_server_url = os.environ.get("LLM_URL", "http://localhost:8000") + "/generate_tests"
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -131,9 +138,7 @@ async def stream():
     """
 
     async def event_publisher():
-        llm_sse_url = (
-            "http://localhost:8000/stream_test_results"  # Adjust the URL if needed
-        )
+        llm_sse_url = os.environ.get("LLM_URL", "http://localhost:8000") + "/stream_test_results"
 
         print("Connecting to LLM SSE stream...")
 
