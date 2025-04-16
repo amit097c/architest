@@ -26,11 +26,12 @@
    ```
    This starts all services with hot reloading enabled.
 
-4. **Or start in production mode**
+4. **Start in production mode**
    ```bash
-   ENV=production docker-compose up -d
+   # Using production configuration
+   docker-compose -f docker-compose.prod.yml up -d
    ```
-   This starts optimized production containers in detached mode.
+   This starts optimized production containers without development volumes.
 
 5. **Access the application**
    - Development mode: http://localhost:5173
