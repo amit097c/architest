@@ -10,7 +10,7 @@ def test_main(page: Page):
     with open('latest_page.html', 'w', encoding='utf-8') as f:
         f.write(html)
 
-    page = step_2_verify_macbook_air_heading(page)  # 2. Verify "Choose your new MacBook Air." appears
+    page = step_2_verify_choose_macbook_air_text(page)  # 2. Verify "Choose your new MacBook Air." appears
     page.wait_for_load_state('load')
     html = page.content()
     with open('latest_page.html', 'w', encoding='utf-8') as f:
@@ -25,7 +25,7 @@ def step_1_click_buy_macbook_air(page: Page):
     return page
 
 
-def step_2_verify_macbook_air_heading(page: Page):
+def step_2_verify_choose_macbook_air_text(page: Page):
     heading = page.get_by_role("heading", name="Choose your new MacBook Air.")
     expect(heading).to_be_visible(timeout=10000)
     return page
