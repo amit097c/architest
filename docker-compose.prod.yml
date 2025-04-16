@@ -3,9 +3,7 @@ version: '3.8'
 services:
   # Frontend service (production only)
   frontend:
-    build:
-      context: ./frontend
-      target: production
+    image: teamxceedacr.azurecr.io/architest/frontend:latest
     ports:
       - "3000:80"
     environment:
@@ -17,9 +15,7 @@ services:
 
   # Backend service
   backend:
-    build:
-      context: ./Backend
-      target: production
+    image: teamxceedacr.azurecr.io/architest/backend:latest
     ports:
       - "${BACKEND_PORT:-8001}:8001"
     environment:
@@ -33,9 +29,7 @@ services:
 
   # LLM service
   llm:
-    build:
-      context: ./llm
-      target: production
+    image: teamxceedacr.azurecr.io/architest/llm:latest
     ports:
       - "${LLM_PORT:-8000}:8000"
     volumes:
@@ -46,14 +40,3 @@ services:
       - LLM_URL=http://llm:${LLM_PORT:-8000}
       - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
       - FRONTEND_URL=http://frontend:80
-
-  # CLI service - only built, not run as a service
-  cli:
-    build:
-      context: ./cli
-    environment:
-      - PYTHONUNBUFFERED=1
-      - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
-      - LLM_URL=http://llm:${LLM_PORT:-8000}
-    profiles:
-      - cli-tools 
