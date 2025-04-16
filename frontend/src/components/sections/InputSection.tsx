@@ -28,6 +28,16 @@ interface InputSectionProps {
   generateTestScript: () => void;
   language: Language;
   setLanguage: Dispatch<SetStateAction<Language>>;
+  useJira: boolean;
+  setUseJira: Dispatch<SetStateAction<boolean>>;
+  jiraTicketId: string;
+  setJiraTicketId: Dispatch<SetStateAction<string>>;
+  jiraEmail: string;
+  setJiraEmail: Dispatch<SetStateAction<string>>;
+  jiraToken: string;
+  setJiraToken: Dispatch<SetStateAction<string>>;
+  jiraDomain: string;
+  setJiraDomain: Dispatch<SetStateAction<string>>;
 }
 
 const InputSection: React.FC<InputSectionProps> = ({
@@ -48,7 +58,17 @@ const InputSection: React.FC<InputSectionProps> = ({
   status,
   generateTestScript,
   language,
-  setLanguage
+  setLanguage,
+  useJira,
+  setUseJira,
+  jiraTicketId,
+  setJiraTicketId,
+  jiraEmail,
+  setJiraEmail,
+  jiraToken,
+  setJiraToken,
+  jiraDomain,
+  setJiraDomain
 }) => {
   // Function to get available languages for the selected framework
   const getAvailableLanguages = (framework: Framework) => {
@@ -153,6 +173,51 @@ const InputSection: React.FC<InputSectionProps> = ({
           />
         </div>
 
+        {/* Jira Ticket ID Input */}
+        {useJira && (
+          <div className="space-y-2">
+            <label htmlFor="jira-ticket" className="text-sm font-medium">Jira Ticket ID</label>
+            <Input
+              id="jira-ticket"
+              placeholder="e.g. SCRUM-1"
+              value={jiraTicketId}
+              onChange={(e) => setJiraTicketId(e.target.value)}
+            />
+          </div>
+        )}
+
+        {useJira && (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Jira Email</label>
+              <Input
+                placeholder="you@example.com"
+                value={jiraEmail}
+                onChange={(e) => setJiraEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">API Token</label>
+              <Input
+                placeholder="Your Jira API Token"
+                value={jiraToken}
+                onChange={(e) => setJiraToken(e.target.value)}
+                type="password"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Jira Domain</label>
+              <Input
+                placeholder="https://yourcompany.atlassian.net"
+                value={jiraDomain}
+                onChange={(e) => setJiraDomain(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+
+
         {/* Max Retries Input */}
         <div className="space-y-2">
           <label htmlFor="max-retries" className="text-sm font-medium">Max Refinement Attempts</label>
@@ -230,6 +295,13 @@ const InputSection: React.FC<InputSectionProps> = ({
             >
               API Tests
             </Button>
+            <Button
+              variant={useJira ? "default" : "outline"}
+              size="sm"
+              onClick={() => setUseJira(!useJira)}
+            >
+              {useJira ? "Jira Enabled" : "Use Jira Ticket"}
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -237,7 +309,8 @@ const InputSection: React.FC<InputSectionProps> = ({
         <Button
           className="w-full"
           onClick={generateTestScript}
-          disabled={!url || !testSteps || status !== "idle"}
+          //disabled={!url || !testSteps || status !== "idle"}
+          disabled={(!useJira && (!url || !testSteps)) || status !== "idle"}
         >
           {status === "idle" ? (
             <>

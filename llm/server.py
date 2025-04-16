@@ -46,6 +46,11 @@ async def generate_tests(request: Request):
         "language": data.get("language", "python"),  # Python language as default
         "last_script": data.get("last_script", None),
         "max_retries": int(data.get("max_retries", 10)),
+        "jira_ticket_id": data.get("jira_ticket_id", None),
+        "jira_email": data.get("jira_email", None),
+        "jira_token": data.get("jira_token", None),
+        "jira_domain": data.get("jira_domain", None),
+
     }
     print("Initial state sent to LangGraph:")
     print(json.dumps(state_update, indent=2))

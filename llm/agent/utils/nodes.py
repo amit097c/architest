@@ -14,6 +14,7 @@ import asyncio
 from playwright.async_api import async_playwright
 from langgraph.graph import END
 from agent.utils.get_html import clean_html, extract_automation_elements, optimize_html_for_llm
+from agent.utils.jira import add_comment_to_jira, move_ticket_to_next_status, create_bug_ticket_for_failed_test
 
 # Optional caching setup if available
 try:
@@ -485,6 +486,15 @@ def execute_step_script(state, writer: StreamWriter):
                     
                     with open('latest_html_output.html', 'w', encoding='utf-8') as html_file:
                         html_file.write(latest_html)
+
+            # If this was the last step, send Jira success message and move ticket
+            if state["current_step_index"] + 1 == len(state["steps_list"]):
+                if "SCRUM-" in state.get("jira_ticket_id", ""):
+                    try:
+                        add_comment_to_jira(state["jira_ticket_id"], "✅ Test script passed successfully via ArchiTest.", state["jira_email"], state["jira_token"], state["jira_domain"])
+                        move_ticket_to_next_status(state["jira_ticket_id"], state["jira_email"], state["jira_token"], state["jira_domain"])
+                    except Exception as e:
+                        print(f"Jira update failed: {str(e)}")
                         
             return {
                 "html_content": latest_html,
@@ -516,7 +526,7 @@ def execute_step_script(state, writer: StreamWriter):
             
             
             return {
-                "retry_count": state.get("retry_count", 0) + 1,
+                # "retry_count": state.get("retry_count", 0),
                 "has_errors": True,
                 "error_message": error_message,
             }
@@ -533,39 +543,72 @@ def execute_step_script(state, writer: StreamWriter):
 
 def retry_step(state, llm, error_prompt_step, writer: StreamWriter):
     """Retry the current failed step with error information."""
-    current_step_index = state["current_step_index"]
-    writer({"type": "info", "message": f"Retrying step {current_step_index + 1}: {state['current_step']}"})
-    
-    # Get the original script and error
-    current_step_function = state["last_script"]
-    error_message = state["error_message"]
-    accumulated_script = state["accumulated_script"]
 
-    # Prepare the prompt for retry
-    retry_prompt = error_prompt_step.invoke({
-        "original_script": current_step_function,  # Send only the current step function
-        "error_message": error_message,
-        "current_step": state["current_step"],
-        "script_context": accumulated_script,
-        "selectors_context": json.dumps(state["generated_selectors"], indent=2),
-        "url": state["url"],
-        "html_content": state["html_content"],
-        "messages": state["messages"]
-    })
+    state["retry_count"] = state.get("retry_count", 0) + 1
+    max_retries = state["max_retries"]
+    current_step_index = state["current_step_index"]
+
+    writer({"type": "info", "message": f"Refining step {current_step_index + 1} (Attempt {state['retry_count']}/{max_retries})"})
+    print("Retry count:", state["retry_count"], "/", max_retries)
+
+    if state["retry_count"] >= max_retries:
+        writer({
+            "type": "error",
+            "message": "Max refinement attempts reached. Please check your test steps and/or the webpage.",
+            "details": state.get("error_message", "Unknown error")
+        })
+
+        print("\nMax retries reached. Stopping further refinements.")
+
+        if "SCRUM-" in state.get("jira_ticket_id", ""):
+                try:
+                    add_comment_to_jira(state["jira_ticket_id"], "❌ Test script failed. Creating bug report...", state["jira_email"], state["jira_token"], state["jira_domain"])
+                    create_bug_ticket_for_failed_test(state["jira_ticket_id"], state.get("error_message", "No details available"), state["jira_email"], state["jira_token"], state["jira_domain"])
+                except Exception as e:
+                    print(f"Jira bug creation failed: {e}")
+
+        return {
+            **state,
+            "messages": [{"role": "system", "content": "Test generation failed. Max retries reached."}],
+            "stop_execution": True,
+            "error_message": "Max retries reached",
+        }
     
-    # Invoke LLM for correction
-    response = llm.invoke(retry_prompt)
-    cleaned_content = clean_script_response(response.content)
-    print(f"cleaned_content: {cleaned_content}")
-    test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
-    script_builder.replace_last_step(test_step)
-    
-    # Update state
-    return {
-        "messages": [{"role": "assistant", "content": cleaned_content}],
-        "retry_count": (state.get("retry_count") or 0) + 1,
-        "last_script": cleaned_content,
-    }
+    else:
+        # Get the original script and error
+        current_step_function = state["last_script"]
+        error_message = state["error_message"]
+        accumulated_script = state["accumulated_script"]
+
+        # Prepare the prompt for retry
+        retry_prompt = error_prompt_step.invoke({
+            "original_script": current_step_function,  # Send only the current step function
+            "error_message": error_message,
+            "current_step": state["current_step"],
+            "script_context": accumulated_script,
+            "selectors_context": json.dumps(state["generated_selectors"], indent=2),
+            "url": state["url"],
+            "html_content": state["html_content"],
+            "messages": state["messages"]
+        })
+        
+        # Invoke LLM for correction
+        response = llm.invoke(retry_prompt)
+        cleaned_content = clean_script_response(response.content)
+        print(f"cleaned_content: {cleaned_content}")
+        test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
+        script_builder.replace_last_step(test_step)
+        
+        # Update state
+        return {
+            "messages": [{"role": "assistant", "content": cleaned_content}],
+            "retry_count": state["retry_count"],
+            "last_script": cleaned_content,
+        }
+
+def limit(state):
+    return "stop" if state.get("stop_execution", False) else "retry"
+
 
 # Function defined to invoke the LLM model with its configuration
 def invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium, prompt_template_playwright_js, writer: StreamWriter):

@@ -18,6 +18,7 @@ from agent.utils.nodes import (
     process_current_step,
     execute_step_script,
     retry_step,
+    limit,
     HAS_CACHE
 )
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -527,18 +528,28 @@ step_workflow.add_node("initialize", lambda state, writer: initialize_step_execu
 step_workflow.add_node("process_step", lambda state, writer: process_current_step(state, llm, prompt_template_step, writer))
 step_workflow.add_node("execute_step", lambda state, writer: execute_step_script(state, writer))
 step_workflow.add_node("retry_step", lambda state, writer: retry_step(state, llm, error_prompt_step, writer))
+# step_workflow.add_node("check_stop", lambda state, writer: check_stop(state, writer))
 step_workflow.add_node("clear", clear_memory)
 
 # Define the flow for step-by-step workflow
 step_workflow.add_edge(START, "initialize")
 step_workflow.add_edge("initialize", "process_step")
 step_workflow.add_edge("process_step", "execute_step")
-step_workflow.add_edge("retry_step", "execute_step")
+step_workflow.add_conditional_edges(
+    "retry_step", limit, {
+        "stop": "clear",
+        "retry": "execute_step",
+    }
+)
 step_workflow.add_edge("clear", END)
 
 # Add conditional edges based on execution results
 class StepRouter:
     def __call__(self, state):
+        # Check if we need to stop execution
+        if state.get("stop_execution", False):
+            return "stop"
+
         # If there are errors, retry
         if state.get("has_errors", False):
             return "retry"
@@ -565,7 +576,8 @@ step_workflow.add_conditional_edges(
     {
         "retry": "retry_step",
         "continue": "process_step",
-        "complete": "clear"
+        "complete": "clear",
+        "stop": "clear"
     }
 )
 

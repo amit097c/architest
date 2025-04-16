@@ -41,6 +41,9 @@ const ArchiTest: React.FC = () => {
   const [testScript, setTestScript] = useState<string>("");
   const [status, setStatus] = useState<TestStatus>("idle");
   const [results, setResults] = useState<TestResult | null>(null);
+  const [jiraEmail, setJiraEmail] = useState("");
+  const [jiraToken, setJiraToken] = useState("");
+  const [jiraDomain, setJiraDomain] = useState("");
   // const [testErrors, setTestErrors] = useState<TestErrors | null>(null);
   const [statusTestErrors, setStatusTestErrors] = useState<TestErrors | null>(null);
   const [iterations, setIterations] = useState<number>(0);
@@ -53,6 +56,9 @@ const ArchiTest: React.FC = () => {
   const [statusEvents, setStatusEvents] = useState<StatusEvent[]>([]);
   const [duration, setDuration] = useState(0);
   const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
+  const [useJira, setUseJira] = useState(false);
+  const [jiraTicketId, setJiraTicketId] = useState("");
+
 
   useEffect(() => {
     const eventSource = new EventSource("http://localhost:8001/stream");
@@ -166,9 +172,34 @@ const ArchiTest: React.FC = () => {
   };
 
   // Mock function to simulate test script generation
-  const generateTestScript = () => {
+  const generateTestScript = async() => {
     // Reset previous test data
     resetTest();
+
+    let finalTestSteps = testSteps;
+    let finalUrl = url;
+
+    if (useJira) {
+      try {
+        const response = await axios.post("http://localhost:8001/fetch_jira_test_steps", {
+          issue_key: jiraTicketId,
+          email: jiraEmail,
+          api_token: jiraToken,
+          domain: jiraDomain,
+        });
+  
+        const { test_steps, url } = response.data;
+        finalTestSteps = test_steps;
+        finalUrl = url;
+        
+        setTestSteps(test_steps);
+        setUrl(url);
+      } catch (error) {
+        console.error("Failed to fetch from Jira:", error);
+        alert("Error fetching from Jira. Check ticket ID or backend.");
+        return; // Stop here if fetch fails
+      }
+    }
 
     // Initialize time tracking
     const startTime = new Date();
@@ -187,13 +218,17 @@ const ArchiTest: React.FC = () => {
 
     setStatus("extracting-and-processing-html");
     addStatusEvent("info", "Extracting and processing html");
-    console.log("sending request to send_test with payload", {url, testSteps, framework});
+    console.log("sending request to send_test with payload", {finalUrl, finalTestSteps, framework});
     (axios.post('http://localhost:8001/send_test', {
-      url: isMultiPage ? [url, ...multiPageUrls.filter(Boolean)] : [url],
-      test_steps: testSteps, // Ensure test_steps matches API expectations
+      url: isMultiPage ? [finalUrl, ...multiPageUrls.filter(Boolean)] : [finalUrl],
+      test_steps: finalTestSteps, // Ensure test_steps matches API expectations
       framework: framework,
       language: language,
       max_retries: maxRetries,
+      jira_ticket_id: useJira ? jiraTicketId : null,
+      jira_email: useJira ? jiraEmail : null,
+      jira_token: useJira ? jiraToken : null,
+      jira_domain: useJira ? jiraDomain : null,
     }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);
@@ -268,8 +303,18 @@ const ArchiTest: React.FC = () => {
             setMultiPageUrls={setMultiPageUrls}
             includeApi={includeApi}
             setIncludeApi={setIncludeApi}
+            useJira={useJira}
+            setUseJira={setUseJira}
+            jiraTicketId={jiraTicketId}
+            setJiraTicketId={setJiraTicketId}
             status={status}
             generateTestScript={generateTestScript}
+            jiraEmail={jiraEmail}
+            setJiraEmail={setJiraEmail}
+            jiraToken={jiraToken}
+            setJiraToken={setJiraToken}
+            jiraDomain={jiraDomain}
+            setJiraDomain={setJiraDomain}
           />
 
           <TestResultsSection 

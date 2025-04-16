@@ -30,9 +30,11 @@ import asyncio
 import time
 from datetime import datetime
 import os
+from jira_client import jira_router
 
 app = FastAPI()
 html_processor = HTMLProcessor()
+app.include_router(jira_router)
 
 
 # Define the request body model using Pydantic
@@ -42,6 +44,10 @@ class TestRequest(BaseModel):
     framework: str
     language: str
     max_retries: int
+    jira_ticket_id: str | None = None
+    jira_email: str | None = None
+    jira_token: str | None = None
+    jira_domain: str | None = None
 
 
 # Add CORS middleware
@@ -108,6 +114,10 @@ async def send_test(request: TestRequest):
         "max_retries": request.max_retries,
         "framework": request.framework,
         "language": request.language,
+        "jira_ticket_id": request.jira_ticket_id,
+        "jira_email": request.jira_email,
+        "jira_token": request.jira_token,
+        "jira_domain": request.jira_domain,
     }
 
     print("Payload sent to LLM server:")
