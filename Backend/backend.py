@@ -66,7 +66,7 @@ app.add_middleware(
 )
 
 
-@app.post("/send_test")
+@app.post("/api/send_test")
 async def send_test(request: TestRequest):
     start_time = time.time()
     print(f"\nStarting URL processing at {datetime.now().strftime('%H:%M:%S')}")
@@ -140,7 +140,7 @@ async def send_test(request: TestRequest):
         )
 
 
-@app.get("/stream")
+@app.get("/api/stream")
 async def stream():
     """
     This endpoint streams the results of a test from the LLM server via SSE.
