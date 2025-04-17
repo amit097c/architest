@@ -61,7 +61,7 @@ const ArchiTest: React.FC = () => {
 
 
   useEffect(() => {
-    const eventSource = new EventSource("http://localhost:8001/stream");
+    const eventSource = new EventSource("/api/stream");
 
     eventSource.onopen = () => {
       console.log("Connection established to /stream");
@@ -181,7 +181,7 @@ const ArchiTest: React.FC = () => {
 
     if (useJira) {
       try {
-        const response = await axios.post("http://localhost:8001/fetch_jira_test_steps", {
+        const response = await axios.post("/api/fetch_jira_test_steps", {
           issue_key: jiraTicketId,
           email: jiraEmail,
           api_token: jiraToken,
@@ -219,7 +219,7 @@ const ArchiTest: React.FC = () => {
     setStatus("extracting-and-processing-html");
     addStatusEvent("info", "Extracting and processing html");
     console.log("sending request to send_test with payload", {finalUrl, finalTestSteps, framework});
-    (axios.post('http://localhost:8001/send_test', {
+    (axios.post('/api/send_test', {
       url: isMultiPage ? [finalUrl, ...multiPageUrls.filter(Boolean)] : [finalUrl],
       test_steps: finalTestSteps, // Ensure test_steps matches API expectations
       framework: framework,
