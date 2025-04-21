@@ -94,6 +94,7 @@ const InputSection: React.FC<InputSectionProps> = ({
     { value: "DELETE", label: "DELETE" }
   ];
 
+
   // Function to get available languages for the selected framework
   const getAvailableLanguages = (framework: Framework) => {
     if (isApiTest) {
@@ -143,11 +144,15 @@ const InputSection: React.FC<InputSectionProps> = ({
       { value: "cypress", label: "Cypress" }
     ];
   };
+  // Define default test steps for API and UI tests
+  const defaultApiSteps = "1. Send GET request to /users\n2. Verify response status is 200\n3. Validate user data in response";
+  const defaultUiSteps = "1. Navigate to homepage\n2. Search for 'product'\n3. Verify search results appear\n4. Click on first result\n5. Verify product details page loads";
 
   // Update framework when switching between UI and API testing
   useEffect(() => {
     const frameworks = getAvailableFrameworks(isApiTest);
     setFramework(frameworks[0].value as Framework);
+    setTestSteps("");
   }, [isApiTest]);
 
 
@@ -279,15 +284,19 @@ const InputSection: React.FC<InputSectionProps> = ({
           </div>
         )}
 
+        
+
         {/* Test Steps Input */}
         <div className="space-y-2">
           <label htmlFor="test-steps" className="text-sm font-medium">Test Steps</label>
           <Textarea
             id="test-steps"
-            placeholder={isApiTest
+            /*placeholder={isApiTest
               ? "1. Send GET request to /users\n2. Verify response status is 200\n3. Validate user data in response"
               : "1. Navigate to homepage\n2. Search for 'product'\n3. Verify search results appear\n4. Click on first result\n5. Verify product details page loads"
-            }
+            }*/
+           
+            placeholder={isApiTest ? defaultApiSteps : defaultUiSteps}
             value={testSteps}
             onChange={(e) => setTestSteps(e.target.value)}
             rows={8}

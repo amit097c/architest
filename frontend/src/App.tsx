@@ -118,7 +118,7 @@ const ArchiTest: React.FC = () => {
       //   });
       //   setStatus("failed");
       // }
-      else if (newEvent.message === "Tests executed successfully") {
+      else if (newEvent.message === "Tests executed successfully" ||newEvent.message === "API tests executed successfully") {
         details = "All test assertions passed";
         setResults({
           status: "passed",
