@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 import json
 import asyncio
-from agent.agent import graph, step_graph
+from agent.agent import step_graph
 
 app = FastAPI()
 
@@ -64,7 +64,7 @@ async def generate_tests(request: Request):
         print(f"Starting test generation using {approach} approach...")
         
         # Choose the appropriate graph based on the approach
-        selected_graph = step_graph if approach == "step_by_step" else graph
+        selected_graph = step_graph
         
         # Process the stream and push updates to the queue
         async for chunk in selected_graph.astream(state_update, config, stream_mode="custom"):
