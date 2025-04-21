@@ -629,6 +629,9 @@ def execute_step_script(state, writer: StreamWriter):
             writer({"type": "success", "message": f"Step {state['current_step_index'] + 1} executed successfully"})
             # writer({"type": "success", "message": "Tests executed successfully"})
             writer({"type": "script", "message": step_script})
+            
+            if state["current_step_index"] + 1 == len(state["steps_list"]):
+                writer({"type": "success", "message": "Tests executed successfully"})
             # rag_manager.store_test_result(
             #     framework="playwright",
             #     test_script=step_script,
