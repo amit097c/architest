@@ -451,6 +451,16 @@ def initialize_step_execution(state, writer: StreamWriter):
 
     framework = state.get("framework", "playwright")
     language = state.get("language", "python")
+    
+    if framework == "postman":
+        updated_state = {
+            "current_step_index": 0,
+            "steps_list": steps_list,
+            "current_step": steps_list[0] if steps_list else None,
+            "completed_steps": [],
+            "accumulated_script": "",
+        }
+        return {**state, **updated_state}
 
     if framework == "playwright" and language == "python":
         builder = ScriptBuilder()
@@ -483,63 +493,52 @@ def initialize_step_execution(state, writer: StreamWriter):
     return {**state, **updated_state}
 
 # Function to process the current test step
-def process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, writer: StreamWriter):
+def process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, prompt_template_postman, writer: StreamWriter):
     writer({"type": "info", "message": f"Processing step {state['current_step_index'] + 1}/{len(state['steps_list'])}: {state['current_step']}"})
     
-    # Determine if this is the first step
     is_first_step = state["current_step_index"] == 0
-    
-    # Create context from previous steps
+
     previous_steps_context = ""
-    if state["completed_steps"]:
+    if state.get("completed_steps"):
         previous_steps_context = "Previous completed steps:\n"
         for i, step in enumerate(state["completed_steps"]):
             previous_steps_context += f"{i+1}. {step}\n"
-    
-    # Create context from generated selectors
+
     selectors_context = ""
-    if state["generated_selectors"]:
+    if state.get("generated_selectors"):
         selectors_context = "Previously generated selectors:\n"
         for element, selector in state["generated_selectors"].items():
             selectors_context += f"- {element}: {selector}\n"
-    
-    # Create context from API results if any
+
     api_context = ""
-    if state["api_results"]:
+    if state.get("api_results"):
         api_context = "API results from previous steps:\n"
         api_context += json.dumps(state["api_results"], indent=2)
-    
-    script_context = state["accumulated_script"] if state["accumulated_script"] else ""
-    
-    # Process HTML to extract unique selectors if this is the first step and HTML content is available
-    html_content = state["html_content"]
+
+    script_context = state.get("accumulated_script", "")
+
+    html_content = state.get("html_content")
     selector_data = []
-    
+
     if is_first_step and html_content:
         try:
             selector_data = asyncio.run(preprocess_html_for_selectors(html_content, state["url"]))
-            
-            # Add selector information to the state for future steps
             if selector_data:
-                # Create a simplified mapping for the generated_selectors
                 for item in selector_data:
                     text = item["text"]
-                    # Get the most unique selector (first in the sorted list)
                     best_selector = item["selectors"][0]["selector"] if item["selectors"] else None
                     if best_selector:
-                        state["generated_selectors"][text] = best_selector
+                        state.setdefault("generated_selectors", {})[text] = best_selector
         except Exception as e:
             writer({"type": "warning", "message": f"Error preprocessing HTML for selectors: {str(e)}"})
             print(f"Error preprocessing HTML for selectors: {str(e)}")
-    
+
     selector_recommendations = ""
-    
     if selector_data:
         selector_recommendations = "Recommended selectors for visible text elements:\n"
         for item in selector_data:
             text = item["text"]
             unique_selectors = [s for s in item["selectors"] if s["unique"]]
-            
             if unique_selectors:
                 best_selector = unique_selectors[0]
                 selector_recommendations += f"- For text '{text}', use this unique selector: {best_selector['selector']} (type: {best_selector['type']})\n"
@@ -547,28 +546,38 @@ def process_current_step(state, llm, prompt_template_step, prompt_template_selen
                 best_selector = item["selectors"][0]
                 selector_recommendations += f"- For text '{text}', use this selector (not unique): {best_selector['selector']} (type: {best_selector['type']})\n"
     print(f"selector_recommendations: {selector_recommendations}")
-    
-    prompt_vars = {
-        "current_step": state["current_step"],
-        "previous_steps_context": previous_steps_context,
-        "selectors_context": selectors_context + "\n" + selector_recommendations,
-        "api_context": api_context,
-        "script_context": script_context,
-        "url": state["url"],
-        "messages": state["messages"],
-        "html_content": state["html_content"]
-    }
 
     framework = state.get("framework", "playwright")
     language = state.get("language", "python")
+    
+    if framework == "postman":
+        prompt_vars = {
+            "api_endpoint": state.get("api_endpoint", ""),
+            "api_method": state.get("api_method", "GET"),
+            "api_payload": state.get("api_payload", "{}"),
+            "test_steps": state["current_step"]
+        }
+    else:
+        prompt_vars = {
+            "current_step": state["current_step"],
+            "previous_steps_context": previous_steps_context,
+            "selectors_context": selectors_context + "\n" + selector_recommendations,
+            "api_context": api_context,
+            "script_context": script_context,
+            "url": state["url"],
+            "messages": state["messages"],
+            "html_content": state["html_content"]
+        }
 
     prompt_templates = {
     ("playwright", "python"): prompt_template_step,
     ("playwright", "javascript"): prompt_template_playwright_js,
     ("selenium", "java"): prompt_template_selenium,
+    ("postman",): prompt_template_postman,
     }
 
-    template = prompt_templates.get((framework, language))
+    template_key = (framework, language) if framework != "postman" else ("postman",)
+    template = prompt_templates.get(template_key)
     
     base_prompt = template.invoke(prompt_vars)
     
@@ -582,6 +591,12 @@ def process_current_step(state, llm, prompt_template_step, prompt_template_selen
     response = llm.invoke(base_prompt)
     cleaned_content = clean_script_response(response.content)
 
+    if framework == "postman":
+        return {
+            "messages": [{"role": "assistant", "content": cleaned_content}],
+            "max_retries": state["max_retries"],
+            "last_script": cleaned_content,
+        }
     if framework == "playwright" and language == "python":
         test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
     elif framework == "playwright" and language == "javascript":
@@ -843,7 +858,75 @@ def execute_playwright_js_script(state, writer: StreamWriter):
 
     return state
 
-def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, writer: StreamWriter):
+def execute_postman_collection(state, writer: StreamWriter):
+    """Execute a Postman collection for API testing."""
+    print("inside execute_postman_collection")
+    script_content = state["messages"][-1].content
+    state["last_script"] = script_content
+
+    writer({"type": "script", "message": state["last_script"]})
+
+    print("\n=== Generated Script ===")
+    print(script_content)
+    print("=====================\n")
+
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    JS_UTILS_DIR = os.path.join(SCRIPT_DIR, "javascript_utils")
+    NEWMAN_PATH = os.path.join(JS_UTILS_DIR, "node_modules", ".bin", "newman")
+
+    os.makedirs(JS_UTILS_DIR, exist_ok=True)
+
+    if not os.path.exists(os.path.join(JS_UTILS_DIR, "node_modules", "newman")):
+        writer({
+            "type": "error",
+            "message": "Newman module not found. Please run `npm install` inside javascript_utils directory."
+        })
+        state["has_errors"] = True
+        return state
+    
+    # Write the collection to a temp file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, dir=".") as f:
+        f.write(script_content)
+        temp_path = f.name
+
+    filename = os.path.basename(temp_path)
+    new_script_path = os.path.join(JS_UTILS_DIR, filename)
+    shutil.move(temp_path, new_script_path)
+
+    try:
+        writer({"type": "info", "message": "Executing Postman collection"})
+        
+        # Run newman (Postman CLI)
+        process = subprocess.run(
+            [NEWMAN_PATH, "run", filename],
+            capture_output=True,
+            cwd=JS_UTILS_DIR,
+            text=True
+        )
+
+        output = process.stdout if process.stdout else process.stderr
+        
+        # Check for failed assertions in the newman output
+        if "failure" in output or process.returncode != 0:
+            writer({"type": "error", "message": "API test execution failed", "errors": output})
+            state["has_errors"] = True
+            state["error_message"] = output
+            # Store the specific assertion errors for better retry context
+            if "AssertionError" in output:
+                state["assertion_errors"] = [line for line in output.split('\n') if "AssertionError" in line]
+        else:
+            writer({"type": "success", "message": "API tests executed successfully"})
+            state["completed_steps"] = state["completed_steps"] + [state["current_step"]]
+            state["current_step_index"] = state["current_step_index"] + 1
+            state["current_step"] = state["steps_list"][state["current_step_index"]] if state["current_step_index"] < len(state["steps_list"]) else None
+            state["has_errors"] = False
+
+    finally:
+        os.unlink(new_script_path)
+    
+    return state
+
+def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, error_prompt_postman, writer: StreamWriter):
     """Retry the current failed step with error information."""
 
     state["retry_count"] = state.get("retry_count", 0) + 1
@@ -889,28 +972,52 @@ def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_
         ("playwright", "python"): error_prompt_step,
         ("playwright", "javascript"): error_prompt_playwright_js,
         ("selenium", "java"): error_prompt_selenium,
+        ("postman",): error_prompt_postman,
         }
 
-        template = prompt_templates.get((framework, language))
+        template_key = (framework, language) if framework != "postman" else ("postman",)
+        template = prompt_templates.get(template_key)
 
-        # Prepare the prompt for retry
-        retry_prompt = template.invoke({
-            "original_script": current_step_function,  # Send only the current step function
-            "error_message": error_message,
-            "current_step": state["current_step"],
-            "script_context": accumulated_script,
-            "selectors_context": json.dumps(state["generated_selectors"], indent=2),
-            "url": state["url"],
-            "html_content": state["html_content"],
-            "messages": state["messages"]
-        })
+        if framework == "postman":
+            retry_prompt = template.invoke({
+                "api_endpoint": state.get("api_endpoint", ""),
+                "api_method": state.get("api_method", "GET"),
+                "api_payload": state.get("api_payload", "{}"),
+                "test_steps": state["current_step"],
+                "error_message": error_message,
+                "original_script": current_step_function,
+            })
+        else:
+            retry_prompt = template.invoke({
+                "original_script": current_step_function,
+                "error_message": error_message,
+                "current_step": state["current_step"],
+                "script_context": accumulated_script,
+                "selectors_context": json.dumps(state["generated_selectors"], indent=2),
+                "url": state["url"],
+                "html_content": state["html_content"],
+                "messages": state["messages"],
+            })
         
         # Invoke LLM for correction
         response = llm.invoke(retry_prompt)
         cleaned_content = clean_script_response(response.content)
         print(f"cleaned_content: {cleaned_content}")
-        test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
-        script_builder.replace_last_step(test_step)
+
+        if framework == "playwright" and language == "python":
+            test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
+        elif framework == "playwright" and language == "javascript":
+            test_step = JavaScriptTestStep(cleaned_content, state["current_step"])
+        elif framework == "selenium":
+            test_step = JavaTestStep(cleaned_content, state["current_step"])
+        else:
+            test_step = None  # postman doesn't use test_step class
+
+        if test_step:
+            script_builder.replace_last_step(test_step)
+
+        # test_step = PlaywrightTestStep(cleaned_content, state["current_step"])
+        # script_builder.replace_last_step(test_step)
         
         # Update state
         return {
@@ -933,6 +1040,8 @@ def limit_error(state):
 
     if framework == "selenium":
         return "execute_selenium"
+    elif framework == "postman":
+        return "execute_postman"
     elif framework == "playwright":
         return "execute_playwright_js" if language == "javascript" else "execute_playwright"
     
@@ -944,6 +1053,8 @@ def handle_framework(state):
         return "execute_playwright_js_script"
     elif state["framework"] == "selenium":
         return "execute_selenium_script"
+    elif state["framework"] == "postman":
+        return "execute_postman_collection"
 
 # Function defined to execute the Playwright script in Chrome for chrome stability check
 def execute_chrome_script(script_content):
@@ -980,8 +1091,10 @@ def execute_chrome_script(script_content):
 
 # Function defined to clear the memory after a succesful script execution
 def clear_memory(state):
-    script_builder.reset()
-    
+    try:
+        script_builder.reset()
+    except NameError:
+        pass
     return {
         **state,
         "messages": [],

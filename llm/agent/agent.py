@@ -8,6 +8,7 @@ from agent.utils.nodes import (
     clear_memory,
     execute_selenium_script,
     execute_playwright_js_script,
+    execute_postman_collection,
     handle_framework,
     limit_error,
     initialize_step_execution,
@@ -530,17 +531,66 @@ error_prompt_playwright_js = ChatPromptTemplate(
     ]
 )
 
+# Add API test prompt templates
+prompt_template_postman = ChatPromptTemplate([
+    ("system", """
+    You are a Postman collection JSON generator, generate only a Postman collection JSON for API testing.
+    
+    API Details:
+    Endpoint: {api_endpoint}
+    Method: {api_method}
+    Payload: {api_payload}
+    
+    Test Steps:
+    {test_steps}
+    
+    Constraints:
+    - Generate valid Postman collection format v2.1
+    - Include environment variables where appropriate
+    - Add test scripts to validate response status, body, and headers
+    - Include error handling and assertions
+    """)
+])
+
+error_prompt_postman = ChatPromptTemplate([
+    ("system", """
+    Fix the following Postman collection JSON that produced an error.
+    
+    Current collection:
+    {original_script}
+    
+    Current error:
+    {error_message}
+
+    API Details:
+    Endpoint: {api_endpoint}
+    Method: {api_method}
+    Payload: {api_payload}
+    
+    Test Steps:
+    {test_steps}
+    
+    Constraints:
+    - Return only the generated script without any explanations.
+    - Generate valid Postman collection format v2.1
+    - Include environment variables where appropriate
+    - Add test scripts to validate response status, body, and headers
+    - Include error handling and assertions
+    """)
+])
+
 
 # Define the step-by-step workflow
 step_workflow = StateGraph(CustomState)
 
 # Define nodes for step-by-step workflow
 step_workflow.add_node("initialize", lambda state, writer: initialize_step_execution(state, writer))
-step_workflow.add_node("process_step", lambda state, writer: process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, writer))
+step_workflow.add_node("process_step", lambda state, writer: process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, prompt_template_postman, writer))
 step_workflow.add_node("execute_step", lambda state, writer: execute_step_script(state, writer))
 step_workflow.add_node("execute_playwright_js", lambda state, writer: execute_playwright_js_script(state, writer))
 step_workflow.add_node("execute_selenium", lambda state, writer: execute_selenium_script(state, writer))
-step_workflow.add_node("retry_step", lambda state, writer: retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, writer))
+step_workflow.add_node("execute_postman", lambda state, writer: execute_postman_collection(state, writer))
+step_workflow.add_node("retry_step", lambda state, writer: retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, error_prompt_postman, writer))
 # step_workflow.add_node("check_stop", lambda state, writer: check_stop(state, writer))
 step_workflow.add_node("clear", clear_memory)
 
@@ -551,7 +601,8 @@ step_workflow.add_edge("initialize", "process_step")
 step_workflow.add_conditional_edges("process_step", handle_framework, {
     "execute_playwright_script": "execute_step",
     "execute_selenium_script": "execute_selenium",
-    "execute_playwright_js_script": "execute_playwright_js"
+    "execute_playwright_js_script": "execute_playwright_js",
+    "execute_postman_collection": "execute_postman"
 })
 
 step_workflow.add_conditional_edges(
@@ -559,6 +610,7 @@ step_workflow.add_conditional_edges(
         "execute_selenium": "execute_selenium",
         "execute_playwright": "execute_step",
         "execute_playwright_js": "execute_playwright_js",
+        "execute_postman": "execute_postman",
         "stop": "clear"
     }
 )
@@ -614,6 +666,16 @@ step_workflow.add_conditional_edges(
 )
 step_workflow.add_conditional_edges(
     "execute_playwright_js", 
+    StepRouter(),
+    {
+        "retry": "retry_step",
+        "continue": "process_step",
+        "complete": "clear",
+        "stop": "clear"
+    }
+)
+step_workflow.add_conditional_edges(
+    "execute_postman", 
     StepRouter(),
     {
         "retry": "retry_step",

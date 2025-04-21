@@ -1,6 +1,7 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Dict
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
+
 
 
 class CustomState(TypedDict):
@@ -30,3 +31,5 @@ class CustomState(TypedDict):
     jira_email: Optional[str] = None
     jira_token: Optional[str] = None
     jira_domain: Optional[str] = None
+    is_api_test: Optional[bool] = False
+    api_details: Optional[Dict[str, str]] = None

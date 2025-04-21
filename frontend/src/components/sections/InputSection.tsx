@@ -38,6 +38,14 @@ interface InputSectionProps {
   setJiraToken: Dispatch<SetStateAction<string>>;
   jiraDomain: string;
   setJiraDomain: Dispatch<SetStateAction<string>>;
+  isApiTest: boolean;
+  setIsApiTest: (isApiTest: boolean) => void;
+  apiEndpoint: string;
+  setApiEndpoint: (endpoint: string) => void;
+  apiMethod: string;
+  setApiMethod: (method: string) => void;
+  apiPayload: string;
+  setApiPayload: (payload: string) => void;
 }
 
 const InputSection: React.FC<InputSectionProps> = ({
@@ -68,10 +76,32 @@ const InputSection: React.FC<InputSectionProps> = ({
   jiraToken,
   setJiraToken,
   jiraDomain,
-  setJiraDomain
+  setJiraDomain,
+  isApiTest,
+  setIsApiTest,
+  apiEndpoint,
+  setApiEndpoint,
+  apiMethod,
+  setApiMethod,
+  apiPayload,
+  setApiPayload
 }) => {
+  // Function to handle the generation of test scripts
+  const apiMethods = [
+    { value: "GET", label: "GET" },
+    { value: "POST", label: "POST" },
+    { value: "PUT", label: "PUT" },
+    { value: "DELETE", label: "DELETE" }
+  ];
+
   // Function to get available languages for the selected framework
   const getAvailableLanguages = (framework: Framework) => {
+    if (isApiTest) {
+      return [
+        { value: "postman", label: "Postman" },
+        { value: "restassured", label: "REST Assured" }
+      ];
+    }
     switch (framework) {
       case "playwright":
         return [
@@ -99,61 +129,153 @@ const InputSection: React.FC<InputSectionProps> = ({
     }
   }, [framework]);
 
+  // Get available frameworks based on testing type
+  const getAvailableFrameworks = (isApiTest: boolean) => {
+    if (isApiTest) {
+      return [
+        { value: "postman", label: "Postman" },
+        { value: "restassured", label: "REST Assured" }
+      ];
+    }
+    return [
+      { value: "playwright", label: "Playwright" },
+      { value: "selenium", label: "Selenium" },
+      { value: "cypress", label: "Cypress" }
+    ];
+  };
+
+  // Update framework when switching between UI and API testing
+  useEffect(() => {
+    const frameworks = getAvailableFrameworks(isApiTest);
+    setFramework(frameworks[0].value as Framework);
+  }, [isApiTest]);
+
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Test Configuration</CardTitle>
         <CardDescription>
-          Provide a URL and test steps to generate automated test scripts
+        {isApiTest
+            ? "Configure API test settings"
+            : "Provide a URL and test steps to generate automated test scripts"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* URL Input */}
-        <div className="space-y-2">
-          <label htmlFor="url" className="text-sm font-medium">Target URL</label>
-          <Input
-            id="url"
-            placeholder="https://example.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
+        {/* Testing Type Toggle */}
+        <div className="flex space-x-3">
+          <Button
+            variant={!isApiTest ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsApiTest(false)}
+          >
+            Script Testing
+          </Button>
+          <Button
+            variant={isApiTest ? "default" : "outline"}
+            size="sm"
+            onClick={() => setIsApiTest(true)}
+          >
+            API Testing
+          </Button>
         </div>
 
-        {/* Multi-Page URLs Input */}
-        {isMultiPage && (
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Additional URLs</label>
-            {multiPageUrls.map((pageUrl, index) => (
-              <div key={index} className="flex space-x-2">
-                <Input
-                  value={pageUrl}
-                  onChange={(e) => {
-                    const updated = [...multiPageUrls];
-                    updated[index] = e.target.value;
-                    setMultiPageUrls(updated);
-                  }}
-                  placeholder={`Page URL ${index + 1}`}
-                />
+        {/* Show URL input only for UI testing */}
+        {!isApiTest && (
+          <>
+            <div className="space-y-2">
+              <label htmlFor="url" className="text-sm font-medium">Target URL</label>
+              <Input
+                id="url"
+                placeholder="https://example.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+
+            {/* Multi-Page URLs Input */}
+            {isMultiPage && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Additional URLs</label>
+                {multiPageUrls.map((pageUrl, index) => (
+                  <div key={index} className="flex space-x-2">
+                    <Input
+                      value={pageUrl}
+                      onChange={(e) => {
+                        const updated = [...multiPageUrls];
+                        updated[index] = e.target.value;
+                        setMultiPageUrls(updated);
+                      }}
+                      placeholder={`Page URL ${index + 1}`}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const updated = multiPageUrls.filter((_, i) => i !== index);
+                        setMultiPageUrls(updated);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
                 <Button
-                  variant="destructive"
+                  type="button"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    const updated = multiPageUrls.filter((_, i) => i !== index);
-                    setMultiPageUrls(updated);
-                  }}
+                  onClick={() => setMultiPageUrls([...multiPageUrls, ""])}
                 >
-                  Remove
+                  + Add Page
                 </Button>
               </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setMultiPageUrls([...multiPageUrls, ""])}
-            >
-              + Add Page
-            </Button>
+            )}
+          </>
+        )}
+
+        {/* API Testing Fields */}
+        {isApiTest && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="apiEndpoint" className="text-sm font-medium">API Endpoint</label>
+              <Input
+                id="apiEndpoint"
+                placeholder="https://api.example.com/v1/resource"
+                value={apiEndpoint}
+                onChange={(e) => setApiEndpoint(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">HTTP Method</label>
+              <Select
+                value={apiMethod}
+                onValueChange={setApiMethod}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select HTTP method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apiMethods.map(method => (
+                    <SelectItem key={method.value} value={method.value}>
+                      {method.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(apiMethod === "POST" || apiMethod === "PUT") && (
+              <div className="space-y-2">
+                <label htmlFor="apiPayload" className="text-sm font-medium">Request Payload (JSON)</label>
+                <Textarea
+                  id="apiPayload"
+                  placeholder="{}"
+                  value={apiPayload}
+                  onChange={(e) => setApiPayload(e.target.value)}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -162,11 +284,10 @@ const InputSection: React.FC<InputSectionProps> = ({
           <label htmlFor="test-steps" className="text-sm font-medium">Test Steps</label>
           <Textarea
             id="test-steps"
-            placeholder="1. Navigate to homepage
-2. Search for 'product'
-3. Verify search results appear
-4. Click on first result
-5. Verify product details page loads"
+            placeholder={isApiTest
+              ? "1. Send GET request to /users\n2. Verify response status is 200\n3. Validate user data in response"
+              : "1. Navigate to homepage\n2. Search for 'product'\n3. Verify search results appear\n4. Click on first result\n5. Verify product details page loads"
+            }
             value={testSteps}
             onChange={(e) => setTestSteps(e.target.value)}
             rows={8}
@@ -216,8 +337,6 @@ const InputSection: React.FC<InputSectionProps> = ({
           </>
         )}
 
-
-
         {/* Max Retries Input */}
         <div className="space-y-2">
           <label htmlFor="max-retries" className="text-sm font-medium">Max Refinement Attempts</label>
@@ -250,67 +369,74 @@ const InputSection: React.FC<InputSectionProps> = ({
                 <SelectValue placeholder="Select framework" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="playwright">Playwright</SelectItem>
-                <SelectItem value="cypress">Cypress</SelectItem>
-                <SelectItem value="selenium">Selenium</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="language" className="text-sm font-medium">Language</label>
-            <Select
-              value={language}
-              onValueChange={(value) => setLanguage(value as Language)}
-            >
-              <SelectTrigger id="language">
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                {getAvailableLanguages(framework).map(lang => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
+                {getAvailableFrameworks(isApiTest).map(fw => (
+                  <SelectItem key={fw.value} value={fw.value}>
+                    {fw.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+            {/* Language Selection */}
+            {!isApiTest && (
+            <div className="space-y-2">
+              <label htmlFor="language" className="text-sm font-medium">Language</label>
+              <Select
+                value={language}
+                onValueChange={(value) => setLanguage(value as Language)}
+              >
+                <SelectTrigger id="language">
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableLanguages(framework).map(lang => (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      {lang.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* Options */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Options</label>
-          <div className="flex space-x-3 pt-2">
-            <Button
-              variant={isMultiPage ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIsMultiPage(!isMultiPage)}
-            >
-              Multi-Page
-            </Button>
-            <Button
-              variant={includeApi ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIncludeApi(!includeApi)}
-            >
-              API Tests
-            </Button>
-            <Button
-              variant={useJira ? "default" : "outline"}
-              size="sm"
-              onClick={() => setUseJira(!useJira)}
-            >
-              {useJira ? "Jira Enabled" : "Use Jira Ticket"}
-            </Button>
-          </div>
+        {!isApiTest && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Options</label>
+            <div className="flex space-x-3 pt-2">
+              <Button
+                variant={isMultiPage ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsMultiPage(!isMultiPage)}
+              >
+                Multi-Page
+              </Button>
+              <Button
+                variant={includeApi ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIncludeApi(!includeApi)}
+              >
+                API Tests
+              </Button>
+              <Button
+                variant={useJira ? "default" : "outline"}
+                size="sm"
+                onClick={() => setUseJira(!useJira)}
+              >
+                {useJira ? "Jira Enabled" : "Use Jira Ticket"}
+              </Button>
+            </div>
         </div>
+        )}
       </CardContent>
       <CardFooter>
         <Button
           className="w-full"
           onClick={generateTestScript}
           //disabled={!url || !testSteps || status !== "idle"}
-          disabled={(!useJira && (!url || !testSteps)) || status !== "idle"}
+          disabled={isApiTest ? !apiEndpoint || !testSteps || status !== "idle" : (!useJira && (!url || !testSteps)) || status !== "idle"}
         >
           {status === "idle" ? (
             <>
