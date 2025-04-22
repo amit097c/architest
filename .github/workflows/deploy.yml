@@ -77,10 +77,7 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/frontend:${{ github.sha }}
           targetPort: 80
           ingress: external
-          environmentVariables: |
-            NODE_ENV=production
-            BACKEND_URL=${{ env.BACKEND_URL }}
-            LLM_URL=${{ env.LLM_URL }}
+          environmentVariables: "NODE_ENV=production BACKEND_URL=${{ env.BACKEND_URL }} LLM_URL=${{ env.LLM_URL }}"
 
       - name: Deploy Backend to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
@@ -90,12 +87,7 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/backend:${{ github.sha }}
           targetPort: 8001
           ingress: external
-          environmentVariables: |
-            PYTHONUNBUFFERED=1
-            ENV=production
-            LLM_URL=${{ env.LLM_URL }}
-            BACKEND_URL=${{ env.BACKEND_URL }}
-            FRONTEND_URL=${{ env.FRONTEND_URL }}
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }}"
 
       - name: Deploy LLM to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
@@ -105,9 +97,4 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
           targetPort: 8000
           ingress: external
-          environmentVariables: |
-            PYTHONUNBUFFERED=1
-            ENV=production
-            LLM_URL=${{ env.LLM_URL }}
-            BACKEND_URL=${{ env.BACKEND_URL }}
-            FRONTEND_URL=${{ env.FRONTEND_URL }}
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }}"
