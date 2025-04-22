@@ -59,6 +59,8 @@ app.add_middleware(
         "http://frontend",           # Docker internal frontend
         "http://frontend:5173",      # Docker internal frontend (dev)
         "http://frontend:80",        # Docker internal frontend (prod)
+        "https://architest-frontend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io",  # Azure Container Apps frontend
+        "*",  # Temporarily allow all origins for testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
