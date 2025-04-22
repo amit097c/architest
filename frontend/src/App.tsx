@@ -59,7 +59,13 @@ const ArchiTest: React.FC = () => {
   const [useJira, setUseJira] = useState(false);
   const [jiraTicketId, setJiraTicketId] = useState("");
 
-  console.log(import.meta.env.VITE_BACKEND_URL);
+  console.log(import.meta.env.VITE_BACKEND_URL);  
+  const [isApiTest, setIsApiTest] = useState<boolean>(false);
+  const [apiEndpoint, setApiEndpoint] = useState<string>("");
+  const [apiMethod, setApiMethod] = useState<string>("GET");
+  const [apiPayload, setApiPayload] = useState<string>("{}");
+
+
   useEffect(() => {
     const eventSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
 
@@ -99,7 +105,7 @@ const ArchiTest: React.FC = () => {
           errorDetails: "• Your test steps may need to be more specific\n• The webpage elements might not be accessible\n• The webpage structure might have changed\n\nPlease verify your test steps and check if the webpage is accessible.",
         });
       }
-      else if (newEvent.message === "Test execution failed" || newEvent.message === "Compilation failed") {
+      else if (newEvent.type === "error" || newEvent.message === "Test execution failed" || newEvent.message === "Compilation failed") {
         setStatusTestErrors({
           message: newEvent.errors
         });
@@ -113,7 +119,7 @@ const ArchiTest: React.FC = () => {
       //   });
       //   setStatus("failed");
       // }
-      else if (newEvent.message === "Tests executed successfully") {
+      else if (newEvent.message === "Tests executed successfully" ||newEvent.message === "API tests executed successfully") {
         details = "All test assertions passed";
         setResults({
           status: "passed",
@@ -148,7 +154,7 @@ const ArchiTest: React.FC = () => {
     details?: string
   ) => {
     const newEvent: StatusEvent = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       timestamp: new Date(),
       type,
       message,
@@ -220,15 +226,29 @@ const ArchiTest: React.FC = () => {
     addStatusEvent("info", "Extracting and processing html");
     console.log("sending request to send_test with payload", {finalUrl, finalTestSteps, framework});
     (axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/send_test`, {
-      url: isMultiPage ? [finalUrl, ...multiPageUrls.filter(Boolean)] : [finalUrl],
+      // url: isMultiPage ? [finalUrl, ...multiPageUrls.filter(Boolean)] : [finalUrl],
       test_steps: finalTestSteps, // Ensure test_steps matches API expectations
       framework: framework,
-      language: language,
+      language: isApiTest ? framework : language,
       max_retries: maxRetries,
       jira_ticket_id: useJira ? jiraTicketId : null,
       jira_email: useJira ? jiraEmail : null,
       jira_token: useJira ? jiraToken : null,
       jira_domain: useJira ? jiraDomain : null,
+      is_api_test: isApiTest,
+      ...(isApiTest 
+        ? {
+            api_details: {
+              endpoint: apiEndpoint,
+              method: apiMethod,
+              payload: apiPayload
+            },
+            url: [apiEndpoint] // Include endpoint as URL for API tests
+          }
+        : {
+            url: isMultiPage ? [finalUrl, ...multiPageUrls.filter(Boolean)] : [finalUrl]
+          }
+      ),
     }) as Promise<any>)
     .then(response => {
       console.log('Success:', response.data);
@@ -315,6 +335,14 @@ const ArchiTest: React.FC = () => {
             setJiraToken={setJiraToken}
             jiraDomain={jiraDomain}
             setJiraDomain={setJiraDomain}
+            isApiTest={isApiTest}
+            setIsApiTest={setIsApiTest}
+            apiEndpoint={apiEndpoint}
+            setApiEndpoint={setApiEndpoint}
+            apiMethod={apiMethod}
+            setApiMethod={setApiMethod}
+            apiPayload={apiPayload}
+            setApiPayload={setApiPayload}
           />
 
           <TestResultsSection 

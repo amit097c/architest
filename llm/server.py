@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 import json
 import asyncio
-from agent.agent import graph, step_graph
+from agent.agent import step_graph
+from typing import Optional, List
 
 app = FastAPI()
 
@@ -20,6 +21,12 @@ class PromptReq(BaseModel):
 async def generate_tests(request: Request):
     try:
         data = await request.json()
+        # Set default values for API tests
+        if data.get("is_api_test", False):
+            if not data.get("url"):
+                data["url"] = [data.get("api_details", {}).get("endpoint", "")]
+            if not data.get("language"):
+                data["language"] = data.get("framework")  # Use framework as language for API tests
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
 
@@ -50,6 +57,8 @@ async def generate_tests(request: Request):
         "jira_email": data.get("jira_email", None),
         "jira_token": data.get("jira_token", None),
         "jira_domain": data.get("jira_domain", None),
+        "is_api_test": data.get("is_api_test", False),
+        "api_details": data.get("api_details", {}),
 
     }
     print("Initial state sent to LangGraph:")
@@ -64,7 +73,7 @@ async def generate_tests(request: Request):
         print(f"Starting test generation using {approach} approach...")
         
         # Choose the appropriate graph based on the approach
-        selected_graph = step_graph if approach == "step_by_step" else graph
+        selected_graph = step_graph
         
         # Process the stream and push updates to the queue
         async for chunk in selected_graph.astream(state_update, config, stream_mode="custom"):

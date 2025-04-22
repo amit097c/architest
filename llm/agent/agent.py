@@ -6,19 +6,15 @@ from langgraph.graph import START, StateGraph, END
 from agent.utils.state import CustomState
 from agent.utils.nodes import (
     clear_memory,
-    invoke_llm,
-    execute_playwright_script,
     execute_selenium_script,
     execute_playwright_js_script,
-    handle_errors,
+    execute_postman_collection,
     handle_framework,
-    retry_with_errors,
     limit_error,
     initialize_step_execution,
     process_current_step,
     execute_step_script,
     retry_step,
-    limit,
     HAS_CACHE
 )
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -241,180 +237,85 @@ error_prompt_step = ChatPromptTemplate(
     ]
 )
 
-# Define the prompt template for Playwright
-prompt_template_playwright = ChatPromptTemplate(
-    [
-        (
-            "system",
-            """
-            You are an expert QA automation engineer.
-
-            Your task is to generate a **Python Playwright test** using the **pytest** framework.
-            
-            ---
-            
-            ### Analysis and Test Generation Process:
-            1. FIRST: Analyze the provided HTML to identify the most reliable selectors for each element.
-            2. SECOND: Determine the most appropriate locator strategy for each element.
-            3. THIRD: Generate a test with fallback mechanisms for unreliable elements.
-
-            ---
-
-            ### 📋 Test Details:
-            - **Test Steps**:
-            {test_steps}
-
-            - **HTML Content**:
-            {html_content}
-
-            - **Target URL**:
-            {url}
-
-            ---
-
-            ### ⚙️ Guidelines:
-
-            #### ✅ Imports
-            Start with:
-            ```python
-            import pytest
-            from playwright.sync_api import Page, expect
-            ```
-
-            #### 🧪 Test Function
-            ```python
-            def test_name(page: Page):
-            ```
-
-            #### Locator Strategy Decision Tree:
-            - For elements with data-testid: Use `page.get_by_test_id("...")`
-            - For interactive elements with accessible roles: Use `page.get_by_role("...", name="...")`
-            - For form elements with labels: Use `page.get_by_label("...")`
-            - For elements with unique text: Use `page.get_by_text("...", exact=True)`
-            - If multiple matching elements exist: Use parent context to narrow selection
-            
-            #### Resilient Test Pattern:
-            - Always include multiple ways to locate critical elements
-            - Use wait operations between all interactions
-            - Include retry logic for flaky elements
-            - Add comments explaining the locator strategy choices
-            - Lower the timeouts for faster retries: Use `timeout=10000` for locating elements when necessary
-            
-            #### 🧼 Output
-            Only return valid **Python code** using **pytest** and **Playwright**.  
-            **No explanations, markdown, or extra text.**
-
-            ---
-            """
-        ),
-        MessagesPlaceholder("messages"),
-    ]
-)
-
-# Define the error prompt template for Playwright
-error_prompt_playwright = ChatPromptTemplate(
-    [
-        (
-            "system",
-            """
-            You are an expert QA automation engineer.
-
-            Fix the following **Playwright test script** that produced an error.
-
-            ### 🔧 Problem Context:
-            - **Current Script**:
-            {original_script}
-
-            - **Error Message**:
-            {error_message}
-
-            - **Test Steps**:
-            {test_steps}
-
-            - **HTML Content**:
-            {html_content}
-
-            - **Target URL**:
-            {url}
-
-            ---
-
-            ### ⚙️ Guidelines for Fixing the Script:
-            
-            #### 🔍 Common causes for Playwright errors:
-            - Element not found or hidden
-            - Multiple elements matching
-
-            #### 🔍 Locator Improvements
-            1. Use the **most specific locators available**, in this order:
-                - `page.get_by_test_id("...")` (preferred)
-                - `page.get_by_role("...", name="...", exact=True)`
-                - `page.get_by_label("...")`
-                - `page.get_by_placeholder("...")`
-                - `page.get_by_alt_text("...")`
-                - `page.get_by_title("...")`
-                - `page.get_by_text("...", exact=True)` - **Only use this if no other option uniquely identifies the element.**
-            2. Avoid generic locators like `button`, `a`, `div`, or `:root`.
-            3. For **hidden elements**, ensure necessary actions (e.g., clicking dropdowns, toggles) are performed first.
-            4. If locators match multiple elements, make them more specific using:
-                - Parent context (e.g., `section:has(...)`)
-                - Attribute filters (e.g., `data-testid`, `data-attribute`)
-                - Indexing only as a last resort (e.g., `.nth(0)`).
-            5. If `get_by_text("...")` matches multiple elements:
-                - Try `get_by_role(..., name=..., exact=True)` instead
-                - Use attributes like `data-testid`, `class`, or refine with parent locators
-                - Use `.nth(n)` **only if unavoidable**, and **only with a comment** explaining why
-
-            #### ⏳ Handling Timeouts
-            - For elements not found, ensure:
-                - Lower the default timeout: `page.wait_for_selector("selector", timeout=10000)`
-                - Proper waiting: `expect(locator).to_be_visible(timeout=10000)`
-                - Element readiness: `locator.scroll_into_view_if_needed()`
-                - Consider increasing the timeout in case of complex UI loads, but prioritize shorter timeouts where possible.
-
-            #### 🧪 Output Requirements
-            - Return ONLY the corrected Python script using **pytest** and **Playwright**.
-            - DO NOT include any explanations, markdown formatting, or additional text.
-            - DO NOT include phrases like "Here is the corrected script" or similar.
-            - Start directly with the Python code, beginning with imports.
-            - Ensure all locators are improved and errors are addressed.
-            - Use clean, readable formatting for all Playwright code.
-
-            ---
-            """
-        )
-    ]
-)
-
 # Define the prompt template for Selenium
 prompt_template_selenium = ChatPromptTemplate(
     [
         (
             "system",
             """
-            Generate a Java Selenium test script based on the provided HTML content, URL, and test steps.
-            Test Steps:
-            {test_steps}
+            You are a senior QA engineer writing **Java (Selenium WebDriver)** test step methods.
 
-            HTML Content:
+            Your task is to write a **single Java method** implementing the test step described below. Follow Selenium best practices and ensure your code is robust and reliable.
+
+            ---
+
+            ### 🚀 Test Step:
+            {current_step}
+
+            ### Previous Steps (Context):
+            {previous_steps_context}
+
+            ### Known Selectors:
+            {selectors_context}
+
+            ### API Context:
+            {api_context}
+
+            ### Script So Far:
+            {script_context}
+
+            ### Target URL:
+            {url}
+
+            ### HTML Snapshot:
             {html_content}
 
-            URL:
-            {url}
-            
-            Constraints:
-            - Use Java and import the necessary Selenium, WebDriver, WebDriverWait, and ExpectedConditions classes.    
-            - Dont set path of chrome driver, it is already configured.
-            - Implement **explicit waits** instead of hardcoded sleep (`Thread.sleep`).  
-            - **Analyze the HTML content** to determine the most stable **XPath or CSS Selectors**. 
-            - For a successful run, add System.exit(0) right after driver.quit() line to close the browser, and for a failure, add System.exit(1).
-            - Ensure proper **exception handling** for timeout, element not found, and stale elements.  
-            - Use a try-finally block to ensure the browser is properly closed after execution.
-            """,
+            ---
+
+            ### ✅ Guidelines:
+
+            1. **Method Signature**:
+            ```java
+            public void stepX_descriptiveName(WebDriver driver) {{
+                // step implementation
+            }}
+            ```
+
+            2. **Element Locators** (in this order):
+                - `By.cssSelector("[data-testid='id']")` for stable attributes
+                - `By.xpath(...)` or `By.linkText(...)` for unique text
+                - `By.name`, `By.id`, or `By.className` as fallback
+
+            3. **Always use explicit waits**:
+            ```java
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+            WebElement button = wait.until(ExpectedConditions.elementToBeClickable(By.id("submit")));
+            button.click();
+            ```
+
+            4. **API Interactions (if any)**: Simulate HTTP requests using libraries like OkHttp or RestAssured, but skip actual implementation unless required.
+
+            5. **Return Type**: `void`
+
+            6. Output only valid Java code — no test classes, no `main()` or boilerplate.
+
+            Example return:
+            ```java
+            public void step1_clickSubmit(WebDriver driver) {{
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                WebElement button = wait.until(ExpectedConditions.elementToBeClickable(By.id("submit")));
+                button.click();
+            }}
+            ```
+
+            Only return the function. No wrapper code or comments unless essential.
+            """
         ),
         MessagesPlaceholder("messages"),
     ]
 )
+
+
 
 # Define the error prompt template for Selenium
 error_prompt_selenium = ChatPromptTemplate(
@@ -422,67 +323,151 @@ error_prompt_selenium = ChatPromptTemplate(
         (
             "system",
             """
-            You are a Selenium test script debugger. Your task is to fix the following Selenium test script that encountered an error.
-            
-            Current script:
-            {original_script}
-            
-            Current error:
-            {error_message}
+            You are a professional QA engineer experienced in debugging **Selenium WebDriver tests written in Java**.
 
-            Test Steps:
-            {test_steps}
-            
-            HTML Content:
+            Your task is to FIX the following Java function that failed execution, using Selenium best practices.
+
+            ---
+
+            ### 🧪 Failing Java Method:
+            ```java
+            {original_script}
+            ```
+
+            ### ❌ Error Message:
+            ```
+            {error_message}
+            ```
+
+            ### 📋 Test Step:
+            {current_step}
+
+            ### Other Steps Previously Generated:
+            {script_context}
+
+            ### Element Selectors Already Used:
+            {selectors_context}
+
+            ### Target Page URL:
+            {url}
+
+            ### HTML Snapshot:
             {html_content}
 
-            URL:
-            {url}
-            
-            Constraints:
-            - **Do NOT explain** the changes, just provide the corrected Java Selenium test script.  
-            - **Fix any incorrect XPath or CSS selectors** based on the provided HTML content.  
-            - Dont set path of chrome driver, it is already configured.
-            - Use **WebDriverWait** instead of `Thread.sleep`.  
-            - Implement **proper exception handling** (`try-catch`) to prevent crashes.  
-            - Close the WebDriver properly using `try-finally` to avoid resource leaks.  
-            - **Avoid solutions that failed in previous attempts.**  
+            ---
 
-            """,
+            ### 🔧 Fixing Instructions:
+
+            1. **Selector Problems**:
+                - If locator failed, try more stable options:
+                    - Prefer `By.id`, `By.name`, or `By.cssSelector` with unique attributes like `data-*`.
+                    - Use `By.xpath` only if CSS is insufficient.
+                    - Add wait conditions using `WebDriverWait` and `ExpectedConditions`.
+
+            2. **Common Fixes**:
+                - Ensure element is visible: 
+                    ```java
+                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                    WebElement btn = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("submit")));
+                    ```
+                - Avoid `Thread.sleep()`. Use `WebDriverWait` instead.
+                - Handle overlays, dynamic loading using proper wait conditions.
+
+            3. **Function Format**:
+                - Keep the same method signature: `public void step_X_name(WebDriver driver)`
+                - Wrap your implementation in double curly braces like:
+                    ```java
+                    public void step1_clickButton(WebDriver driver) {{
+                        // fixed implementation
+                    }}
+                    ```
+                - Do not include imports or class declaration.
+                - Return **only the corrected method code** — no markdown, no commentary.
+            """
         )
     ]
 )
 
-# Define JavaScript prompt template for Playwright
+
 prompt_template_playwright_js = ChatPromptTemplate(
     [
         (
             "system",
             """
-            You are a JavaScript Playwright test script generator. Generate only a JavaScript Playwright test script for the given HTML content and test steps, remember to wait for pages to load.
+            You are an expert QA automation engineer specializing in **JavaScript-based Playwright** tests.
 
-            Test Steps:
-            {test_steps}
+            Your task is to generate an **async JavaScript function** that implements a single test step. Follow best practices for element selection, test structure, and reusability.
 
-            HTML Content:
+            ---
+
+            ### 🧪 Current Test Step to Implement:
+            {current_step}
+
+            ### Previous Context (Optional):
+            {previous_steps_context}
+
+            ### Selectors So Far:
+            {selectors_context}
+
+            ### API Results (if any):
+            {api_context}
+
+            ### Script Context So Far:
+            {script_context}
+
+            ### Target URL:
+            {url}
+
+            ### HTML Snapshot:
             {html_content}
 
-            URL:
-            {url}
-            
-            Constraints:
-            - Use Playwright's best practices with JavaScript.
-            - Analyze the HTML content to identify the necessary selectors.
-            - Ensure the script is robust and handles common edge cases.
-            - Set appropriate timeouts for actions based on their complexity or 10s as default.
-            - Ensure the test cases run in headless mode.
-            - Use async/await syntax for better readability and error handling.
-            - Export the test function for proper test runner integration.
-            """,
+            ---
+
+            ### 🛠️ Instructions for Code Generation:
+
+            1. **Function Signature**:
+            ```javascript
+            async function step_X_descriptiveName(page) {{
+                // implementation
+            }}
+            ```
+            Replace `X` with step number and use a clear `descriptiveName`.
+
+            2. **Don’t include the full test wrapper or imports.** Only the async function.
+
+            3. **Selectors (in order of priority):**
+                - `getByTestId()` if test IDs are available.
+                - `getByRole()` with `name` for ARIA elements.
+                - `getByText()`, `getByLabel()` etc. from Playwright’s testing library.
+                - Use `page.locator(...)` with precise CSS if nothing else fits.
+
+            4. **Check visibility/actionability:**
+            ```javascript
+            const button = page.getByRole('button', {{ name: 'Submit' }});
+            await expect(button).toBeVisible();
+            await expect(button).toBeEnabled();
+            await button.click();
+            ```
+
+            5. **Return nothing** — just the function.
+
+            6. **For API assertions**, use:
+            ```javascript
+            const res = await page.request.get('/api/user');
+            expect(res.ok()).toBeTruthy();
+            const json = await res.json();
+            console.log("\\nAPI_RESULT_START");
+            console.log(JSON.stringify(json, null, 2));
+            console.log("API_RESULT_END\\n");
+            ```
+
+            Output only the function, no extra explanation or test wrapper.
+            """
         ),
         MessagesPlaceholder("messages"),
     ]
 )
+
 
 # Define JavaScript error prompt template for Playwright
 error_prompt_playwright_js = ChatPromptTemplate(
@@ -490,55 +475,143 @@ error_prompt_playwright_js = ChatPromptTemplate(
         (
             "system",
             """
-            Fix the following JavaScript Playwright test script that produced an error.
-            
-            Current script:
-            {original_script}
-            
-            Current error:
-            {error_message}
+            You are a senior QA automation engineer with deep expertise in debugging **Playwright tests written in JavaScript**.
 
-            Test Steps:
-            {test_steps}
-            
-            HTML Content:
+            Your task is to FIX the failing step function provided below using **Playwright best practices** for selectors and timing.
+
+            ---
+
+            ### 🔧 Failed Function (JavaScript):
+            ```javascript
+            {original_script}
+            ```
+
+            ### ❌ Error Encountered:
+            ```
+            {error_message}
+            ```
+
+            ### 📋 Test Step:
+            {current_step}
+
+            ### Previously Generated Code (For Context):
+            {script_context}
+
+            ### Selectors Previously Used:
+            {selectors_context}
+
+            ### Target Page URL:
+            {url}
+
+            ### HTML Snapshot (May Help Debug UI Structure):
             {html_content}
 
-            URL:
-            {url}
-            
-            Constraints:
-            - Generate only the corrected JavaScript script without any explanations.
-            - Avoid solutions that failed in previous attempts.
-            - Analyze the HTML content to identify the necessary selectors.
-            - Set appropriate timeouts for actions based on their complexity or 10s as default.
-            - Ensure the test cases run in headless mode.
-            - Use async/await syntax for better readability and error handling.
-            - Export the test function for proper test runner integration.
-            """,
+            ---
+
+            ### 🛠️ Guidelines for Fixing the Function:
+
+            1. **Locator Improvements**:
+                - If the selector failed or matched multiple elements:
+                    - Switch to `getByTestId`, `getByRole`, or better alternative.
+                    - Use `locator().filter()` or `.nth()` to disambiguate.
+                    - Add `await expect(locator).toBeVisible()` or `toBeEnabled()` as necessary.
+
+            2. **Common Fix Patterns**:
+                - Use `await expect(...).toBeVisible({{ timeout: 10000 }})` to ensure timing.
+                - If interacting with modals/overlays, make sure they’re visible first.
+                - Wrap fragile selectors with `try {{ ... }} catch (e) {{}}` if needed.
+
+            3. **Maintain Format**:
+                - Keep the same function signature: `async function step_X_name(page)`
+                - Return the `page` object at the end.
+                - Do not include main test() function or imports.
+                - Return **only the corrected function** (no markdown or extra commentary).
+            """
         )
     ]
 )
+
+# Add API test prompt templates
+prompt_template_postman = ChatPromptTemplate([
+    ("system", """
+    You are a Postman collection JSON generator, generate only a Postman collection JSON for API testing.
+    
+    API Details:
+    Endpoint: {api_endpoint}
+    Method: {api_method}
+    Payload: {api_payload}
+    
+    Test Steps:
+    {test_steps}
+    
+    Constraints:
+    - Generate valid Postman collection format v2.1
+    - Include environment variables where appropriate
+    - Add test scripts to validate response status, body, and headers
+    - Include error handling and assertions
+    """)
+])
+
+error_prompt_postman = ChatPromptTemplate([
+    ("system", """
+    Fix the following Postman collection JSON that produced an error.
+    
+    Current collection:
+    {original_script}
+    
+    Current error:
+    {error_message}
+
+    API Details:
+    Endpoint: {api_endpoint}
+    Method: {api_method}
+    Payload: {api_payload}
+    
+    Test Steps:
+    {test_steps}
+    
+    Constraints:
+    - Return only the generated script without any explanations.
+    - Generate valid Postman collection format v2.1
+    - Include environment variables where appropriate
+    - Add test scripts to validate response status, body, and headers
+    - Include error handling and assertions
+    """)
+])
+
 
 # Define the step-by-step workflow
 step_workflow = StateGraph(CustomState)
 
 # Define nodes for step-by-step workflow
 step_workflow.add_node("initialize", lambda state, writer: initialize_step_execution(state, writer))
-step_workflow.add_node("process_step", lambda state, writer: process_current_step(state, llm, prompt_template_step, writer))
+step_workflow.add_node("process_step", lambda state, writer: process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, prompt_template_postman, writer))
 step_workflow.add_node("execute_step", lambda state, writer: execute_step_script(state, writer))
-step_workflow.add_node("retry_step", lambda state, writer: retry_step(state, llm, error_prompt_step, writer))
+step_workflow.add_node("execute_playwright_js", lambda state, writer: execute_playwright_js_script(state, writer))
+step_workflow.add_node("execute_selenium", lambda state, writer: execute_selenium_script(state, writer))
+step_workflow.add_node("execute_postman", lambda state, writer: execute_postman_collection(state, writer))
+step_workflow.add_node("retry_step", lambda state, writer: retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, error_prompt_postman, writer))
 # step_workflow.add_node("check_stop", lambda state, writer: check_stop(state, writer))
 step_workflow.add_node("clear", clear_memory)
 
 # Define the flow for step-by-step workflow
 step_workflow.add_edge(START, "initialize")
 step_workflow.add_edge("initialize", "process_step")
-step_workflow.add_edge("process_step", "execute_step")
+# step_workflow.add_edge("process_step", "execute_step")
+step_workflow.add_conditional_edges("process_step", handle_framework, {
+    "execute_playwright_script": "execute_step",
+    "execute_selenium_script": "execute_selenium",
+    "execute_playwright_js_script": "execute_playwright_js",
+    "execute_postman_collection": "execute_postman"
+})
+
 step_workflow.add_conditional_edges(
-    "retry_step", limit, {
-        "stop": "clear",
-        "retry": "execute_step",
+    "retry_step", limit_error, {
+        "execute_selenium": "execute_selenium",
+        "execute_playwright": "execute_step",
+        "execute_playwright_js": "execute_playwright_js",
+        "execute_postman": "execute_postman",
+        "stop": "clear"
     }
 )
 step_workflow.add_edge("clear", END)
@@ -581,61 +654,43 @@ step_workflow.add_conditional_edges(
     }
 )
 
-# Define nodes for legacy workflow (single-step generation)
-workflow.add_node("home", lambda state, writer: invoke_llm(state, llm, prompt_template_playwright, prompt_template_selenium, prompt_template_playwright_js, writer))
-workflow.add_node("execute_playwright", lambda state, writer: execute_playwright_script(state, writer))
-workflow.add_node("execute_selenium", lambda state, writer: execute_selenium_script(state, writer))
-workflow.add_node("execute_playwright_js", lambda state, writer: execute_playwright_js_script(state, writer))
-workflow.add_node("retry", lambda state, writer: retry_with_errors(state, llm, error_prompt_playwright, error_prompt_selenium, error_prompt_playwright_js, writer))
-workflow.add_node("clear", clear_memory)
-
-# Define the flow for legacy workflow
-workflow.add_edge(START, "home")
-workflow.add_conditional_edges("home", handle_framework, {
-    "execute_playwright_script": "execute_playwright",
-    "execute_selenium_script": "execute_selenium",
-    "execute_playwright_js_script": "execute_playwright_js"
-})
-
-workflow.add_conditional_edges(
-    "execute_playwright", handle_errors, {
-        "retry": "retry", 
-        "success": "clear",
+step_workflow.add_conditional_edges(
+    "execute_selenium", 
+    StepRouter(),
+    {
+        "retry": "retry_step",
+        "continue": "process_step",
+        "complete": "clear",
+        "stop": "clear"
     }
 )
-
-workflow.add_conditional_edges(
-    "execute_selenium", handle_errors, {
-        "retry": "retry", 
-        "success": "clear",
+step_workflow.add_conditional_edges(
+    "execute_playwright_js", 
+    StepRouter(),
+    {
+        "retry": "retry_step",
+        "continue": "process_step",
+        "complete": "clear",
+        "stop": "clear"
     }
 )
-
-workflow.add_conditional_edges(
-    "execute_playwright_js", handle_errors, {
-        "retry": "retry", 
-        "success": "clear",
-    }
-)
-
-workflow.add_conditional_edges(
-    "retry", limit_error, {
-        "execute_selenium": "execute_selenium",
-        "execute_playwright": "execute_playwright",
-        "execute_playwright_js": "execute_playwright_js",
+step_workflow.add_conditional_edges(
+    "execute_postman", 
+    StepRouter(),
+    {
+        "retry": "retry_step",
+        "continue": "process_step",
+        "complete": "clear",
         "stop": "clear"
     }
 )
 
-workflow.add_edge("clear", END)
-
 # Compile the workflows
 try:
     config = {"memory": memory_saver}
-    graph = workflow.compile()
     step_graph = step_workflow.compile()
 except Exception as e:
     raise RuntimeError(f"Failed to compile workflow: {str(e)}")
 
 # Export both graphs
-__all__ = ["graph", "step_graph"]
+__all__ = ["step_graph"]
