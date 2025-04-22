@@ -16,6 +16,9 @@ env:
   BACKEND_URL: https://architest-backend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
   FRONTEND_URL: https://architest-frontend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
   LLM_URL: https://architest-llm.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
+  # OpenAI settings (non-sensitive defaults)
+  OPENAI_API_MODEL: gpt-4
+  # OPENAI_API_DEPLOYMENT is only needed if using Azure OpenAI
 
 jobs:
   build-and-deploy:
@@ -97,4 +100,4 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
           targetPort: 8000
           ingress: external
-          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }}"
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} OPENAI_API_MODEL=${{ env.OPENAI_API_MODEL }} OPENAI_API_DEPLOYMENT=${{ secrets.OPENAI_API_DEPLOYMENT }}"
