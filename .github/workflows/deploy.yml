@@ -1,63 +1,117 @@
-name: Deploy to Azure App Service for Containers
+name: Deploy to Azure Container Apps
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
+
+# Define all non-sensitive environment variables directly in the workflow
+env:
+  REGISTRY: teamxceedacr.azurecr.io
+  RESOURCE_GROUP: TeamXceed
+  FRONTEND_APP_NAME: architest-frontend
+  BACKEND_APP_NAME: architest-backend
+  LLM_APP_NAME: architest-llm
+  # Service URLs
+  BACKEND_URL: https://architest-backend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
+  FRONTEND_URL: https://architest-frontend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
+  LLM_URL: https://architest-llm.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
+  # Storage
+  STORAGE_ACCOUNT_NAME: architeststorage
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Verify Docker Compose version
-      run: |
-        docker --version
-        docker compose version
-        echo "Using Docker Compose V2 format (without hyphen)"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
 
-    - name: Log in to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Verify Azure login
-      run: |
-        az account show --query name -o tsv
-        echo "Successfully logged into Azure"
+      - name: Log in to ACR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Log in to Azure Container Registry
-      uses: azure/docker-login@v1
-      with:
-        login-server: teamxceedacr.azurecr.io
-        username: ${{ secrets.ACR_USERNAME }}
-        password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/architest/frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/architest/frontend:latest
+          build-args: |
+            VITE_BACKEND_URL=${{ env.BACKEND_URL }}
 
-    - name: Build and push container images
-      run: |
-        # Build and push the images to ACR
-        docker compose -f docker-compose.prod.yml build
-        docker compose -f docker-compose.prod.yml push
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./Backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/architest/backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/architest/backend:latest
 
-    - name: Deploy to Azure App Service for Containers
-      uses: azure/CLI@v1
-      with:
-        inlineScript: |
-          # Deploy multi-container app using docker-compose.prod.yml
-          az webapp config container set \
-            --resource-group TeamXceed \
-            --name teamxceed-app \
-            --multicontainer-config-type compose \
-            --multicontainer-config-file docker-compose.prod.yml \
-            --docker-registry-server-url https://teamxceedacr.azurecr.io \
-            --docker-registry-server-user ${{ secrets.ACR_USERNAME }} \
-            --docker-registry-server-password ${{ secrets.ACR_PASSWORD }}
-          
-          # Restart the app to apply changes
-          az webapp restart --name teamxceed-app --resource-group TeamXceed
-          
-          # Verify deployment
-          echo "App Service configuration:"
-          az webapp config container show --name teamxceed-app --resource-group TeamXceed
+      - name: Build and push LLM image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./llm
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
+            ${{ env.REGISTRY }}/architest/llm:latest
+
+      - name: Deploy Frontend to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppName: ${{ env.FRONTEND_APP_NAME }}
+          imageToDeploy: ${{ env.REGISTRY }}/architest/frontend:${{ github.sha }}
+          targetPort: 80
+          ingress: external
+          environmentVariables: |
+            NODE_ENV=production
+            BACKEND_URL=${{ env.BACKEND_URL }}
+            LLM_URL=${{ env.LLM_URL }}
+
+      - name: Deploy Backend to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppName: ${{ env.BACKEND_APP_NAME }}
+          imageToDeploy: ${{ env.REGISTRY }}/architest/backend:${{ github.sha }}
+          targetPort: 8001
+          ingress: external
+          environmentVariables: |
+            PYTHONUNBUFFERED=1
+            ENV=production
+            LLM_URL=${{ env.LLM_URL }}
+            BACKEND_URL=${{ env.BACKEND_URL }}
+            FRONTEND_URL=${{ env.FRONTEND_URL }}
+
+      - name: Deploy LLM to Azure Container Apps
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ env.RESOURCE_GROUP }}
+          containerAppName: ${{ env.LLM_APP_NAME }}
+          imageToDeploy: ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
+          targetPort: 8000
+          ingress: external
+          environmentVariables: |
+            PYTHONUNBUFFERED=1
+            ENV=production
+            LLM_URL=${{ env.LLM_URL }}
+            BACKEND_URL=${{ env.BACKEND_URL }}
+            FRONTEND_URL=${{ env.FRONTEND_URL }}
+          volumes: |
+            chromadb=/app/chroma_db
