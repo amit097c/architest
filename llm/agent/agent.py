@@ -34,7 +34,7 @@ if HAS_CACHE:
     from agent.utils.nodes import LLMCache
 
 # Check if running in GitHub Actions
-if not os.getenv("GITHUB_ACTIONS"):
+if os.getenv("ENV") != "production":
     # Load environment variables from .env file (for local testing)
     if not load_dotenv():
         raise RuntimeError("Failed to load environment variables from .env file")
