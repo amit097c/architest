@@ -6,12 +6,18 @@ import re
 import shutil
 from langgraph.types import StreamWriter
 from agent.utils.get_html import clean_html, extract_automation_elements, optimize_html_for_llm
-from agent.utils.jira import add_comment_to_jira, move_ticket_to_next_status
+from shared_utils.jira import add_comment_to_jira, move_ticket_to_next_status
 from .builders import get_script_builder
+from shared_utils.job_control import job_cancellation_flags
+
 
 # Function to execute the current step script
 def execute_step_script(state, writer: StreamWriter):
     """Execute Playwright Python script"""
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
+    
     script_builder = get_script_builder()
     if not script_builder:
         writer({"type": "error", "message": "Script builder not initialized"})
@@ -137,6 +143,9 @@ def execute_step_script(state, writer: StreamWriter):
 
 def execute_selenium_script(state, writer: StreamWriter):
     print("inside execute_selenium_script")
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
     script_builder = get_script_builder()
     step_script = script_builder.render_script()
 
@@ -233,6 +242,9 @@ def execute_selenium_script(state, writer: StreamWriter):
 
 def execute_playwright_js_script(state, writer: StreamWriter):
     print("inside execute_playwright_js_script")
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
     script_builder = get_script_builder()
     step_script = script_builder.render_script()
     print(f"step_script: {step_script}")
@@ -306,6 +318,9 @@ def execute_playwright_js_script(state, writer: StreamWriter):
 
 def execute_postman_collection(state, writer: StreamWriter):
     """Execute a Postman collection for API testing."""
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
     print("inside execute_postman_collection")
     script_content = state["messages"][-1].content
     state["last_script"] = script_content

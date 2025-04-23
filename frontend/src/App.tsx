@@ -7,6 +7,7 @@ import TestResultsSection from "./components/sections/TestResultsSection";
 import ToolsSection from "@/components/sections/ToolsSection";
 import StatusSection from "./components/sections/StatusSection";
 import { Badge } from "@/components/ui/badge";
+// import { StopCircle } from 'lucide-react';
 
 // Types
 type TestStatus = "idle" | "extracting-and-processing-html" | "generating" | "running" | "passed" | "failed" | "refining";
@@ -64,16 +65,17 @@ const ArchiTest: React.FC = () => {
   const [apiEndpoint, setApiEndpoint] = useState<string>("");
   const [apiMethod, setApiMethod] = useState<string>("GET");
   const [apiPayload, setApiPayload] = useState<string>("{}");
-
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
 
   useEffect(() => {
-    const eventSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
+    const eventSourceInstance = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
+    setEventSource(eventSourceInstance);
 
-    eventSource.onopen = () => {
+    eventSourceInstance.onopen = () => {
       console.log("Connection established to /stream");
     };
 
-    eventSource.onmessage = (event) => {
+    eventSourceInstance.onmessage = (event) => {
       const newEvent = JSON.parse(event.data);
 
       // Statuses:
@@ -137,13 +139,14 @@ const ArchiTest: React.FC = () => {
       }
     };
 
-    eventSource.onerror = (error) => {
+    eventSourceInstance.onerror = (error) => {
       console.error('EventSource failed:', error);
-      eventSource.close();
+      eventSourceInstance.close();
     };
 
     return () => {
-      eventSource.close();
+      eventSourceInstance.close();
+      setEventSource(null);
     };
   }, [triggerEffect,framework]);
 
@@ -177,6 +180,31 @@ const ArchiTest: React.FC = () => {
     setDuration(0);
   };
 
+  const cancelGeneration = async () => {
+    try {
+      // Cancel at backend
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/cancel_generation`);
+      
+      // Cancel at LLM server
+      await axios.post(`${import.meta.env.VITE_LLM_URL}/cancel_generation`);
+      
+      // Close the event source
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+      
+      // Reset state
+      setStatus("idle");
+      
+      addStatusEvent("info", "Test generation cancelled");
+      
+    } catch (error) {
+      console.error("Error cancelling test generation:", error);
+      addStatusEvent("error", "Failed to cancel test generation");
+    }
+  };
+
   // Mock function to simulate test script generation
   const generateTestScript = async() => {
     // Reset previous test data
@@ -187,7 +215,7 @@ const ArchiTest: React.FC = () => {
 
     if (useJira) {
       try {
-        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/fetch_jira_test_steps`, {
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/fetch_jira_test_steps`, {
           issue_key: jiraTicketId,
           email: jiraEmail,
           api_token: jiraToken,
@@ -343,6 +371,7 @@ const ArchiTest: React.FC = () => {
             setApiMethod={setApiMethod}
             apiPayload={apiPayload}
             setApiPayload={setApiPayload}
+            onCancel={cancelGeneration}
           />
 
           <TestResultsSection 

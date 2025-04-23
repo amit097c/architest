@@ -13,7 +13,9 @@ Key Features:
 - Uses `aiohttp` for asynchronous requests and `sse-starlette` for Server-Sent Events (SSE).
 
 """
-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 from typing import List
 from fastapi import FastAPI, HTTPException, Request
@@ -29,9 +31,9 @@ import requests
 import asyncio
 import time
 from datetime import datetime
-import os
-from jira_client import jira_router
+from shared_utils.jira import jira_router
 from typing import List, Optional, Dict
+from shared_utils.job_control import job_cancellation_flags
 
 app = FastAPI()
 html_processor = HTMLProcessor()
@@ -199,3 +201,10 @@ async def stream():
 
     # Return the EventSourceResponse to stream the results to the frontend
     return EventSourceResponse(event_publisher())
+
+@app.post("/cancel_generation")
+async def cancel_generation():
+    """Cancel ongoing test generation"""
+    # Set the cancellation flag
+    job_cancellation_flags["current_job"] = True
+    return {"status": "cancelled"}
