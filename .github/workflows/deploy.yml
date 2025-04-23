@@ -102,4 +102,4 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
           targetPort: 8000
           ingress: external
-          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} OPENAI_API_MODEL=${{ env.OPENAI_API_MODEL }} OPENAI_API_DEPLOYMENT=${{ secrets.OPENAI_API_DEPLOYMENT }} OPENAI_API_VERSION=${{ env.OPENAI_API_VERSION }} AZURE_OPENAI_ENDPOINT=${{ env.AZURE_OPENAI_ENDPOINT }}"
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} OPENAI_API_MODEL=${{ env.OPENAI_API_MODEL }} OPENAI_API_DEPLOYMENT=${{ secrets.OPENAI_API_DEPLOYMENT }} OPENAI_API_VERSION=${{ env.OPENAI_API_VERSION }} AZURE_OPENAI_ENDPOINT=${{ env.AZURE_OPENAI_ENDPOINT }}"
