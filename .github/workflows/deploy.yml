@@ -12,6 +12,7 @@ env:
   FRONTEND_APP_NAME: architest-frontend
   BACKEND_APP_NAME: architest-backend
   LLM_APP_NAME: architest-llm
+  OPENAI_API_KEY_SECRET_REF: openai-api-key
   # Service URLs
   BACKEND_URL: https://architest-backend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
   FRONTEND_URL: https://architest-frontend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io
@@ -102,4 +103,4 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/llm:${{ github.sha }}
           targetPort: 8000
           ingress: external
-          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} OPENAI_API_MODEL=${{ env.OPENAI_API_MODEL }} OPENAI_API_DEPLOYMENT=${{ secrets.OPENAI_API_DEPLOYMENT }} OPENAI_API_VERSION=${{ env.OPENAI_API_VERSION }} AZURE_OPENAI_ENDPOINT=${{ env.AZURE_OPENAI_ENDPOINT }}"
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} OPENAI_API_KEY=secretref:${{ env.OPENAI_API_KEY_SECRET_REF }} OPENAI_API_MODEL=${{ env.OPENAI_API_MODEL }} OPENAI_API_DEPLOYMENT=${{ secrets.OPENAI_API_DEPLOYMENT }} OPENAI_API_VERSION=${{ env.OPENAI_API_VERSION }} AZURE_OPENAI_ENDPOINT=${{ env.AZURE_OPENAI_ENDPOINT }}"
