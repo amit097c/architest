@@ -24,6 +24,7 @@ services:
       - LLM_URL=http://llm:${LLM_PORT:-8000}
       - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
       - FRONTEND_URL=http://frontend:80
+      - PYTHONPATH=/app
     depends_on:
       - llm
 
@@ -40,3 +41,5 @@ services:
       - LLM_URL=http://llm:${LLM_PORT:-8000}
       - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
       - FRONTEND_URL=http://frontend:80
+      - PYTHONPATH=/app
+ 

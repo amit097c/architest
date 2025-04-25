@@ -154,6 +154,7 @@ class ScriptBuilderJava:
             "import org.openqa.selenium.WebDriver;\n"
             "import org.openqa.selenium.WebElement;\n"
             "import org.openqa.selenium.chrome.ChromeDriver;\n"
+            "import org.openqa.selenium.chrome.ChromeOptions;\n"
             "import org.openqa.selenium.support.ui.ExpectedConditions;\n"
             "import org.openqa.selenium.support.ui.WebDriverWait;\n"
             "import java.time.Duration;\n\n"
@@ -163,9 +164,12 @@ class ScriptBuilderJava:
         header = (
             "public class GeneratedTest {\n"
             "  public static void main(String[] args) {\n"
-            "    WebDriver driver = new ChromeDriver();\n"
+            "    ChromeOptions options = new ChromeOptions();\n"
+            "    options.addArguments(\"--headless=new\", \"--no-sandbox\", \"--disable-dev-shm-usage\", \"--user-data-dir=/tmp/chrome-user-data\");\n"
+            "    WebDriver driver = new ChromeDriver(options);\n"
             f"    driver.get(\"{self.base_url}\");\n"
         )
+ 
 
         for step in self.steps:
             header += f"    {step.render_test_call()}\n"
