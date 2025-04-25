@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -22,6 +22,7 @@ interface StatusSectionProps {
   statusTestErrors?: {
     message?: string;
   } | null;
+  isApiTest?: boolean;
 }
 
 const StatusSection: React.FC<StatusSectionProps> = ({
@@ -29,7 +30,8 @@ const StatusSection: React.FC<StatusSectionProps> = ({
   events,
   iterations,
   duration,
-  statusTestErrors: testErrors
+  statusTestErrors: testErrors,
+  isApiTest = false
 }) => {
   // Calculate duration if start and end times are available
   const getDuration = () => {
@@ -62,6 +64,60 @@ const StatusSection: React.FC<StatusSectionProps> = ({
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  // Get the latest status message to display in the badge
+  const getStatusBadgeText = useMemo(() => {
+    if (events.length === 0) {
+      return currentStatus === "idle" ? "Ready" : "Generating...";
+    }
+
+    // Sort events by timestamp (newest first)
+    const sortedEvents = [...events].sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    // Customize based on final status
+    if (currentStatus === "idle") return "Ready";
+    if (currentStatus === "passed") return "Tests Passed";
+    if (currentStatus === "failed") return "Tests Failed";
+    
+    // Get the most recent relevant event message for active statuses
+    for (const event of sortedEvents) {
+      // Skip certain messages that shouldn't be displayed as the main status
+      if (event.message.includes("cancelled") || 
+          event.message.includes("initializing") ||
+          event.type === "error" && currentStatus !== "failed") {
+        continue;
+      }
+      
+      if (event.message.includes("Extracting and processing html")) 
+        return "Processing HTML...";
+      if (event.message.includes("Preparing API test"))
+        return "Preparing API Test...";
+      if (event.message.includes("Generating script"))
+        return "Generating Script...";
+      if (event.message.includes("Executing test"))
+        return "Running Tests...";
+      if (event.message.includes("Refining test"))
+        return "Refining Script...";
+      
+      // For custom messages that don't match the patterns above,
+      // display a formatted version of the actual message
+      if (event.type === "info" && event.message) {
+        const message = event.message.charAt(0).toUpperCase() + event.message.slice(1);
+        // Truncate long messages
+        return message.length > 25 ? message.substring(0, 22) + "..." : message;
+      }
+    }
+    
+    // Default mapping for statuses if no matching event was found
+    if (currentStatus === "extracting-and-processing-html") return "Processing HTML...";
+    if (currentStatus === "generating") return "Generating...";
+    if (currentStatus === "running") return "Running Tests...";
+    if (currentStatus === "refining") return "Refining Script...";
+    
+    return "Processing...";
+  }, [events, currentStatus]);
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -75,17 +131,12 @@ const StatusSection: React.FC<StatusSectionProps> = ({
               "secondary"
             }
             className={
-              currentStatus === "generating" || currentStatus === "running" || currentStatus === "refining" 
+              currentStatus === "generating" || currentStatus === "running" || currentStatus === "refining" || currentStatus === "extracting-and-processing-html"
                 ? "animate-pulse" 
                 : ""
             }
           >
-            {currentStatus === "generating" && "Generating Script"}
-            {currentStatus === "running" && "Running Tests"}
-            {currentStatus === "refining" && "Refining Script"}
-            {currentStatus === "passed" && "Tests Passed"}
-            {currentStatus === "failed" && "Tests Failed"}
-            {currentStatus === "idle" && "Ready"}
+            {getStatusBadgeText}
           </Badge>
         </div>
       </CardHeader>

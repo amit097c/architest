@@ -159,19 +159,46 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
         setEventSource(null);
       }
       
-      // Reset state
-      setStatus("idle");
-      
-      addStatusEvent("info", "Test generation cancelled");
+      // Add a delay before resetting state to ensure backend has time to process
+      setTimeout(() => {
+        // Fully reset the test state
+        setTestScript("");
+        setStatus("idle");
+        setResults(null);
+        setStatusTestErrors(null);
+        setIterations(0);
+        
+        // Add cancellation event to status log
+        addStatusEvent("info", "Test generation cancelled");
+        
+        // Re-establish event source after a delay to prevent picking up stale events
+        setTimeout(() => {
+          setTriggerEffect(prev => !prev);
+        }, 500);
+      }, 500);
       
     } catch (error) {
       console.error("Error cancelling test generation:", error);
       addStatusEvent("error", "Failed to cancel test generation");
+      // Still reset the UI state even if there was an error
+      setStatus("idle");
     }
   };
 
   // Event source listener for real-time updates
   useEffect(() => {
+    // Clear any stale events on component mount or reconnection
+    const clearStaleCancellations = async () => {
+      try {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/clear_cancellation`);
+        await axios.post(`${import.meta.env.VITE_LLM_URL}/clear_cancellation`);
+      } catch (error) {
+        console.log("Error clearing stale cancellations (this is normal if endpoints don't exist):", error);
+      }
+    };
+    
+    clearStaleCancellations();
+
     const eventSourceInstance = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
     setEventSource(eventSourceInstance);
 
@@ -186,11 +213,14 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
       if (newEvent.message === "Generating script") { 
         setStatus("generating");
       }
+      else if (newEvent.message === "Preparing API test") {
+        setStatus("generating");
+      }
       else if (newEvent.message.includes("Refining test script")) {
         setIterations(prev => prev + 1);
         setStatus("refining");
       }
-      else if (newEvent.message === "Executing test script") {
+      else if (newEvent.message === "Executing test script" || newEvent.message === "Executing API test") {
         details = `Framework: ${framework}`;
         setStatus("running");
       }
@@ -242,6 +272,14 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
     // Reset previous test data
     resetTest();
 
+    // Clear any existing cancellation flags from previous runs
+    try {
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/clear_cancellation`);
+      await axios.post(`${import.meta.env.VITE_LLM_URL}/clear_cancellation`);
+    } catch (error) {
+      console.log("Error clearing cancellation flags (this is normal if endpoints don't exist):", error);
+    }
+
     let finalTestSteps = testSteps;
     let finalUrl = url;
 
@@ -281,8 +319,14 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
     // Store the interval ID in the ref
     intervalIdRef.current = intervalId;
 
-    setStatus("extracting-and-processing-html");
-    addStatusEvent("info", "Extracting and processing html");
+    // Set appropriate initial status based on test type
+    if (isApiTest) {
+      setStatus("generating");
+      addStatusEvent("info", "Preparing API test");
+    } else {
+      setStatus("extracting-and-processing-html");
+      addStatusEvent("info", "Extracting and processing html");
+    }
     
     try {
       await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/send_test`, {

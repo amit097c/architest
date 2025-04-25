@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Play, RefreshCw } from "lucide-react";
+import { Play, RefreshCw, Loader } from "lucide-react";
 
 type Framework = 'playwright' | 'cypress' | 'selenium';
 type Language = 'python' | 'javascript' | 'java';
@@ -155,6 +155,15 @@ const InputSection: React.FC<InputSectionProps> = ({
     const frameworks = getAvailableFrameworks(isApiTest);
     setFramework(frameworks[0].value as Framework);
     setTestSteps("");
+    
+    // Reset Jira settings when switching to API Testing
+    if (isApiTest && useJira) {
+      setUseJira(false);
+      setJiraTicketId("");
+      setJiraEmail("");
+      setJiraToken("");
+      setJiraDomain("");
+    }
   }, [isApiTest]);
 
 
@@ -199,44 +208,6 @@ const InputSection: React.FC<InputSectionProps> = ({
                 onChange={(e) => setUrl(e.target.value)}
               />
             </div>
-
-            {/* Multi-Page URLs Input */}
-            {isMultiPage && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Additional URLs</label>
-                {multiPageUrls.map((pageUrl, index) => (
-                  <div key={index} className="flex space-x-2">
-                    <Input
-                      value={pageUrl}
-                      onChange={(e) => {
-                        const updated = [...multiPageUrls];
-                        updated[index] = e.target.value;
-                        setMultiPageUrls(updated);
-                      }}
-                      placeholder={`Page URL ${index + 1}`}
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        const updated = multiPageUrls.filter((_, i) => i !== index);
-                        setMultiPageUrls(updated);
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setMultiPageUrls([...multiPageUrls, ""])}
-                >
-                  + Add Page
-                </Button>
-              </div>
-            )}
           </>
         )}
 
@@ -305,8 +276,8 @@ const InputSection: React.FC<InputSectionProps> = ({
           />
         </div>
 
-        {/* Jira Ticket ID Input */}
-        {useJira && (
+        {/* Jira Ticket ID Input - Only show in Script Testing mode */}
+        {!isApiTest && useJira && (
           <div className="space-y-2">
             <label htmlFor="jira-ticket" className="text-sm font-medium">Jira Ticket ID</label>
             <Input
@@ -318,7 +289,8 @@ const InputSection: React.FC<InputSectionProps> = ({
           </div>
         )}
 
-        {useJira && (
+        {/* Jira credentials - Only show in Script Testing mode */}
+        {!isApiTest && useJira && (
           <>
             <div className="space-y-2">
               <label className="text-sm font-medium">Jira Email</label>
@@ -412,25 +384,11 @@ const InputSection: React.FC<InputSectionProps> = ({
           )}
         </div>
 
-        {/* Options */}
+        {/* Options - Only show in Script Testing mode */}
         {!isApiTest && (
           <div className="space-y-2">
             <label className="text-sm font-medium">Options</label>
             <div className="flex space-x-3 pt-2">
-              <Button
-                variant={isMultiPage ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIsMultiPage(!isMultiPage)}
-              >
-                Multi-Page
-              </Button>
-              <Button
-                variant={includeApi ? "default" : "outline"}
-                size="sm"
-                onClick={() => setIncludeApi(!includeApi)}
-              >
-                API Tests
-              </Button>
               <Button
                 variant={useJira ? "default" : "outline"}
                 size="sm"
@@ -448,22 +406,19 @@ const InputSection: React.FC<InputSectionProps> = ({
           className="w-full"
           onClick={generateTestScript}
           //disabled={!url || !testSteps || status !== "idle"}
-          disabled={isApiTest ? !apiEndpoint || !testSteps || status !== "idle" : (!useJira && (!url || !testSteps)) || status !== "idle"}
+          disabled={isApiTest ? !apiEndpoint || !testSteps || (status !== "idle" && status !== "passed" && status !== "failed") : (!useJira && (!url || !testSteps)) || (status !== "idle" && status !== "passed" && status !== "failed")}
         >
-          {status === "idle" ? (
+          {status === "idle" || status === "passed" || status === "failed" ? (
             <>
               <Play className="mr-2 h-4 w-4" />
               Generate & Run Tests
             </>
           ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <>
+              <Loader className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
           )}
-          {status === "extracting-and-processing-html" ? "Extracting and processing HTML..." :
-           status === "generating" ? "Generating..." :
-           status === "running" ? "Running..." :
-           status === "refining" ? "Refining..." :
-           status === "passed" ? "Tests Passed" :
-           status === "failed" ? "Tests Failed" : ""}
         </Button>
 
         {/* Show Stop button when script is running */}

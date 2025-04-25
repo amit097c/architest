@@ -240,6 +240,7 @@ const HomePage: React.FC = () => {
             iterations={iterations}
             duration={duration}
             statusTestErrors={statusTestErrors}
+            isApiTest={isApiTest}
           />
 
           <ToolsSection />
