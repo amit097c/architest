@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     build-essential \
     && pip install --no-cache-dir -r requirements.txt \
+    && pip install pytest \
     && playwright install --with-deps chromium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -35,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gnupg \
     && pip install --no-cache-dir -r requirements.txt \
+    && pip install pytest \
     && mkdir -p /home/appuser/.cache \
     && PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright playwright install --with-deps chromium \
     && chown -R appuser:appuser /home/appuser/.cache \

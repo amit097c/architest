@@ -30,12 +30,14 @@ services:
       - ./Backend:/app
     depends_on:
       - llm
+      - mongodb
     environment:
       - PYTHONUNBUFFERED=1
       - ENV=${ENV:-development}
       - LLM_URL=http://llm:${LLM_PORT:-8000}
       - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
       - FRONTEND_URL=http://frontend:${FRONTEND_PORT:-5173}
+      - MONGODB_URI=mongodb://mongodb:27017/architest
 
   # LLM service
   llm:
@@ -54,6 +56,16 @@ services:
       - BACKEND_URL=http://backend:${BACKEND_PORT:-8001}
       - FRONTEND_URL=http://frontend:${FRONTEND_PORT:-5173}
 
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=architest
+
   # CLI service - only built, not run as a service
   cli:
     build:
@@ -67,3 +79,6 @@ services:
     # Not started automatically
     profiles:
       - cli-tools 
+
+volumes:
+  mongodb_data: 

@@ -6,10 +6,12 @@ This FastAPI backend handles:
 - Cleaning and processing the extracted HTML (`clean_html.py` and `html_processor.py`).
 - Sending the processed data to an LLM-based test script generator.
 - Streaming real-time test execution results using SSE.
+- Managing saved tests, collections, and integration settings in MongoDB.
 
 Key Features:
 - `/send_test`: Extracts, cleans, processes, and sends HTML to LLM for test generation.
 - `/stream`: Streams live test execution results to the frontend.
+- Storage API for tests, collections, and integration settings.
 - Uses `aiohttp` for asynchronous requests and `sse-starlette` for Server-Sent Events (SSE).
 
 """
@@ -31,11 +33,15 @@ import time
 from datetime import datetime
 import os
 from jira_client import jira_router
+from storage_routes import router as storage_router
+from test_runner import router as runner_router
 from typing import List, Optional, Dict
 
 app = FastAPI()
 html_processor = HTMLProcessor()
 app.include_router(jira_router)
+app.include_router(storage_router)
+app.include_router(runner_router)
 
 
 # Define the request body model using Pydantic
@@ -199,3 +205,8 @@ async def stream():
 
     # Return the EventSourceResponse to stream the results to the frontend
     return EventSourceResponse(event_publisher())
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "ok", "time": datetime.now().isoformat()}

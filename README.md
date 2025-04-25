@@ -247,3 +247,104 @@ All required environment variables are documented in `.env.example`. For product
 4. **Permission problems**: The containers run as non-root users in production
 
 5. **Performance issues**: The LLM service is resource-intensive; consider adjusting resource limits
+
+# Test Runner System
+
+A real test runner implementation to execute automated browser tests using different frameworks.
+
+## Features
+
+- Execute real browser tests on your web applications
+- Support for multiple testing frameworks:
+  - Playwright
+  - Cypress
+  - Selenium
+- Real-time test output and status updates
+- Template-based test creation
+- Test cancellation support
+
+## Architecture
+
+The system consists of two main parts:
+
+1. **Backend (Python/FastAPI)**
+   - Test execution engine
+   - Test status tracking
+   - Template management
+   - Test file creation
+
+2. **Frontend (React)**
+   - User interface for test execution
+   - Real-time status updates
+   - Test output display
+
+## Prerequisites
+
+### Backend Requirements
+
+```bash
+pip install fastapi uvicorn playwright selenium webdriver-manager
+```
+
+Additionally, you'll need to install the browser drivers for Playwright:
+
+```bash
+python -m playwright install
+```
+
+### Frontend Requirements
+
+The frontend is built with React and uses the existing components from ArchiTest.
+
+## Setup and Run
+
+### Backend
+
+1. Start the FastAPI server:
+```bash
+cd Backend
+python main.py
+```
+
+The server will run on http://localhost:8000.
+
+### Frontend
+
+1. Start the frontend development server:
+```bash
+cd frontend
+npm run dev
+```
+
+The frontend will run on http://localhost:3000.
+
+## How It Works
+
+1. **Creating a Test**:
+   - Use the Test Editor to write your test script or have ArchiTest generate it for you
+   - Select the framework (Playwright, Cypress, Selenium) and language
+   - Specify the URL to test
+
+2. **Running a Test**:
+   - Click the "Run Test" button to execute the test
+   - The system sends the test to the backend
+   - Backend creates a temporary test file and executes it with the appropriate framework
+   - Output is streamed back to the UI in real-time
+
+3. **Test Templates**:
+   - The system provides templates for different frameworks to help get started
+   - Templates are customized with your test name and URL
+
+## Example Test Files
+
+The system includes example templates for:
+- Playwright (Python)
+- Cypress (JavaScript)
+- Selenium (Python)
+
+## Extending the System
+
+To add support for additional testing frameworks:
+1. Create a new template in the `Backend/templates` directory
+2. Update the `get_template_content` and `start_test_process` functions in `test_runner.py`
+3. Add the new framework option to the frontend UI
