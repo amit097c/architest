@@ -3,11 +3,11 @@ import { SavedTest, Collection } from '@/lib/types';
 import { TestStorageService } from '@/lib/storage-service';
 import BulkTestRunner from '@/components/BulkTestRunner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, AlertCircle, Clock, Plus } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 const TestRunPage: React.FC = () => {
   const [tests, setTests] = useState<SavedTest[]>([]);
@@ -43,7 +43,7 @@ const TestRunPage: React.FC = () => {
   };
 
   const getSelectedTests = () => {
-    return tests.filter(test => selectedTestIds.includes(test.id));
+    return tests.filter(test => test.id && selectedTestIds.includes(test.id));
   };
 
   const handleSelectAll = () => {
@@ -52,8 +52,8 @@ const TestRunPage: React.FC = () => {
       // Deselect all
       setSelectedTestIds([]);
     } else {
-      // Select all
-      setSelectedTestIds(filteredTests.map(test => test.id));
+      // Select all filtered tests with defined IDs
+      setSelectedTestIds(filteredTests.map(test => test.id || '').filter(id => id !== ''));
     }
   };
 
@@ -129,7 +129,7 @@ const TestRunPage: React.FC = () => {
                         variant={selectedCollection === collection.id ? 'default' : 'outline'}
                         size="sm"
                         className={`${collection.color || ''}`}
-                        onClick={() => setSelectedCollection(collection.id)}
+                        onClick={() => setSelectedCollection(collection.id || null)}
                       >
                         {collection.name}
                       </Button>
@@ -148,13 +148,13 @@ const TestRunPage: React.FC = () => {
                     <div
                       key={test.id}
                       className={`flex items-center p-3 border rounded-md ${
-                        selectedTestIds.includes(test.id) ? 'bg-blue-50 border-blue-200' : ''
+                        test.id && selectedTestIds.includes(test.id) ? 'bg-blue-50 border-blue-200' : ''
                       }`}
                     >
                       <Checkbox 
                         id={`test-${test.id}`}
-                        checked={selectedTestIds.includes(test.id)}
-                        onCheckedChange={() => handleSelectTest(test.id)}
+                        checked={test.id ? selectedTestIds.includes(test.id) : false}
+                        onCheckedChange={() => test.id && handleSelectTest(test.id)}
                         className="mr-3"
                       />
                       <div className="flex-1 min-w-0">

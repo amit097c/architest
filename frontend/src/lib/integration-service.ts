@@ -1,4 +1,4 @@
-import { JiraConfig, GitHubConfig, SavedTest } from './types';
+import { SavedTest } from './types';
 import { TestStorageService } from './storage-service';
 
 interface JiraIssue {
@@ -20,10 +20,11 @@ export const IntegrationService = {
   // Jira Integration Methods
   createJiraIssue: async (test: SavedTest): Promise<JiraIssue | null> => {
     try {
-      const settings = TestStorageService.getIntegrationSettings();
-      if (!settings.jira) throw new Error('Jira configuration not found');
+      const settings = await TestStorageService.getIntegrationSettings();
+      if (!settings?.jira) throw new Error('Jira configuration not found');
       
-      const { url, apiToken, email, project } = settings.jira;
+      // Leave empty but still destructure to keep structure consistent
+      const { } = settings.jira;
       
       // For demo purposes, simulate API call
       console.log(`Creating Jira issue for test: ${test.name}`);
@@ -76,10 +77,11 @@ export const IntegrationService = {
   
   getJiraIssue: async (issueKey: string): Promise<JiraIssue | null> => {
     try {
-      const settings = TestStorageService.getIntegrationSettings();
-      if (!settings.jira) throw new Error('Jira configuration not found');
+      const settings = await TestStorageService.getIntegrationSettings();
+      if (!settings?.jira) throw new Error('Jira configuration not found');
       
-      const { url, apiToken, email } = settings.jira;
+      // Leave empty but still destructure to keep structure consistent
+      const { } = settings.jira;
       
       // For demo purposes, simulate API call
       console.log(`Fetching Jira issue: ${issueKey}`);
@@ -121,10 +123,10 @@ export const IntegrationService = {
   // GitHub Integration Methods
   createGitHubIssue: async (test: SavedTest): Promise<GitHubIssue | null> => {
     try {
-      const settings = TestStorageService.getIntegrationSettings();
-      if (!settings.github) throw new Error('GitHub configuration not found');
+      const settings = await TestStorageService.getIntegrationSettings();
+      if (!settings?.github) throw new Error('GitHub configuration not found');
       
-      const { token, owner, repo } = settings.github;
+      const { owner, repo } = settings.github;
       
       // For demo purposes, simulate API call
       console.log(`Creating GitHub issue for test: ${test.name}`);
@@ -165,10 +167,10 @@ export const IntegrationService = {
   
   getGitHubIssue: async (issueNumber: number): Promise<GitHubIssue | null> => {
     try {
-      const settings = TestStorageService.getIntegrationSettings();
-      if (!settings.github) throw new Error('GitHub configuration not found');
+      const settings = await TestStorageService.getIntegrationSettings();
+      if (!settings?.github) throw new Error('GitHub configuration not found');
       
-      const { token, owner, repo } = settings.github;
+      const { owner, repo } = settings.github;
       
       // For demo purposes, simulate API call
       console.log(`Fetching GitHub issue: ${issueNumber}`);
@@ -203,7 +205,7 @@ export const IntegrationService = {
   },
   
   // Test connectivity to integrations
-  testJiraConnection: async (config: JiraConfig): Promise<boolean> => {
+  testJiraConnection: async (): Promise<boolean> => {
     try {
       // For demo purposes, simulate API call
       console.log('Testing Jira connection');
@@ -231,7 +233,7 @@ export const IntegrationService = {
     }
   },
   
-  testGitHubConnection: async (config: GitHubConfig): Promise<boolean> => {
+  testGitHubConnection: async (): Promise<boolean> => {
     try {
       // For demo purposes, simulate API call
       console.log('Testing GitHub connection');
@@ -255,6 +257,25 @@ export const IntegrationService = {
       return true;
     } catch (error) {
       console.error('Error testing GitHub connection:', error);
+      return false;
+    }
+  },
+
+  addJiraComment: async (testId: string, comment: string): Promise<boolean> => {
+    try {
+      const settings = await TestStorageService.getIntegrationSettings();
+      if (!settings?.jira) throw new Error('Jira configuration not found');
+      
+      // Leave empty but still destructure to keep structure consistent
+      const { } = settings.jira;
+      
+      // Simulate comment addition
+      console.log(`Adding comment to test ${testId}: ${comment}`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return true;
+    } catch (error) {
+      console.error('Error adding Jira comment:', error);
       return false;
     }
   }

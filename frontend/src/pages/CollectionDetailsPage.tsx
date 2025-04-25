@@ -21,7 +21,6 @@ const CollectionDetailsPage: React.FC = () => {
   const [tests, setTests] = useState<SavedTest[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   
   useEffect(() => {
     if (id) {
@@ -33,26 +32,20 @@ const CollectionDetailsPage: React.FC = () => {
   const loadCollection = async () => {
     if (!id) return;
     try {
-      setLoading(true);
       const foundCollection = await TestStorageService.getCollectionById(id);
     setCollection(foundCollection || null);
     } catch (error) {
       console.error('Error loading collection:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadCollectionTests = async () => {
     if (!id) return;
     try {
-      setLoading(true);
       const collectionTests = await TestStorageService.getTestsByCollectionId(id);
     setTests(collectionTests);
     } catch (error) {
       console.error('Error loading collection tests:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -60,14 +53,11 @@ const CollectionDetailsPage: React.FC = () => {
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this test?')) {
       try {
-        setLoading(true);
         await TestStorageService.deleteTest(testId);
         await loadCollectionTests();
       } catch (error) {
         console.error('Error deleting test:', error);
         alert('Error deleting test. Please try again.');
-      } finally {
-        setLoading(false);
       }
     }
   };
@@ -75,14 +65,11 @@ const CollectionDetailsPage: React.FC = () => {
   const handleRemoveTestFromCollection = async (testId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      setLoading(true);
       await TestStorageService.removeTestFromCollection(testId);
       await loadCollectionTests();
     } catch (error) {
       console.error('Error removing test from collection:', error);
       alert('Error removing test from collection. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -92,15 +79,12 @@ const CollectionDetailsPage: React.FC = () => {
 
   const handleSaveCollection = async (updatedCollection: Collection) => {
     try {
-      setLoading(true);
-      await TestStorageService.updateCollection(updatedCollection.id, updatedCollection);
+      await TestStorageService.updateCollection(updatedCollection.id || '', updatedCollection);
     setIsEditModalOpen(false);
       await loadCollection();
     } catch (error) {
       console.error('Error updating collection:', error);
       alert('Error updating collection. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -109,14 +93,11 @@ const CollectionDetailsPage: React.FC = () => {
     
     if (confirm('Are you sure you want to delete this collection? Tests in this collection will not be deleted.')) {
       try {
-        setLoading(true);
-        await TestStorageService.deleteCollection(collection.id);
+        await TestStorageService.deleteCollection(collection.id || '');
       navigate('/collections');
       } catch (error) {
         console.error('Error deleting collection:', error);
         alert('Error deleting collection. Please try again.');
-      } finally {
-        setLoading(false);
       }
     }
   };
@@ -210,7 +191,7 @@ const CollectionDetailsPage: React.FC = () => {
             <Card 
               key={test.id} 
               className="cursor-pointer hover:border-primary/20 transition-all"
-              onClick={() => handleEditTest(test.id)}
+              onClick={() => handleEditTest(test.id || '')}
             >
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -259,14 +240,14 @@ const CollectionDetailsPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={(e) => handleRemoveTestFromCollection(test.id, e)}
+                    onClick={(e) => handleRemoveTestFromCollection(test.id || '', e)}
                   >
                     Remove from Collection
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={(e) => handleDeleteTest(test.id, e)}
+                    onClick={(e) => handleDeleteTest(test.id || '', e)}
                   >
                     Delete
                   </Button>

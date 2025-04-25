@@ -8,8 +8,6 @@ import TestEditPage from "@/pages/TestEditPage";
 import CollectionsPage from "@/pages/CollectionsPage";
 import CollectionDetailsPage from "@/pages/CollectionDetailsPage";
 import DashboardPage from "@/pages/DashboardPage";
-import TestRunPage from "@/pages/TestRunPage";
-import IntegrationsPage from "@/pages/IntegrationsPage";
 
 const App: React.FC = () => {
   return (

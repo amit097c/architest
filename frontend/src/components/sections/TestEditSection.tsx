@@ -53,7 +53,7 @@ const TestDetailsSection: React.FC = () => {
     
     setLoading(true);
     try {
-      await TestStorageService.addTagToTest(test.id, tag.trim());
+      await TestStorageService.addTagToTest(test.id || '', tag.trim());
     
       // Update local state
       setTest(prevTest => {
@@ -80,7 +80,7 @@ const TestDetailsSection: React.FC = () => {
     
     setLoading(true);
     try {
-      await TestStorageService.removeTagFromTest(test.id, tagToRemove);
+      await TestStorageService.removeTagFromTest(test.id || '', tagToRemove);
     
       // Update local state
       setTest(prevTest => {

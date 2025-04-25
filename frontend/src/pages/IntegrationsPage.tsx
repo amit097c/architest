@@ -69,7 +69,7 @@ const IntegrationsPage: React.FC = () => {
     setJiraTestResult(null);
     
     try {
-      const success = await IntegrationService.testJiraConnection(jiraConfig);
+      const success = await IntegrationService.testJiraConnection();
       setJiraTestResult(success ? 'success' : 'error');
     } catch (error) {
       setJiraTestResult('error');
@@ -84,7 +84,7 @@ const IntegrationsPage: React.FC = () => {
     setGithubTestResult(null);
     
     try {
-      const success = await IntegrationService.testGitHubConnection(githubConfig);
+      const success = await IntegrationService.testGitHubConnection();
       setGithubTestResult(success ? 'success' : 'error');
     } catch (error) {
       setGithubTestResult('error');

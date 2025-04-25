@@ -62,7 +62,7 @@ const CollectionsSection: React.FC = () => {
     setLoading(true);
     try {
       if (editingCollection) {
-        await TestStorageService.updateCollection(collection.id, collection);
+        await TestStorageService.updateCollection(collection.id || '', collection);
       } else {
         await TestStorageService.createCollection(collection);
       }
@@ -93,10 +93,6 @@ const CollectionsSection: React.FC = () => {
 
   const getTestCountByCollection = (collectionId: string) => {
     return tests.filter(test => test.collectionId === collectionId).length;
-  };
-
-  const getUncategorizedTestsCount = () => {
-    return tests.filter(test => !test.collectionId).length;
   };
 
   if (isLoading) {
@@ -134,7 +130,7 @@ const CollectionsSection: React.FC = () => {
             </CardContent>
             <CardFooter className="justify-between">
               <span className="text-sm font-medium">
-                {getTestCountByCollection(collection.id)} tests
+                {getTestCountByCollection(collection.id || '')} tests
               </span>
               <div className="flex gap-2">
                 <Button 
@@ -153,7 +149,7 @@ const CollectionsSection: React.FC = () => {
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteCollection(collection.id);
+                    handleDeleteCollection(collection.id || '');
                   }}
                   disabled={loading}
                 >

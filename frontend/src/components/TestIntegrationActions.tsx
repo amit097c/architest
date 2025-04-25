@@ -3,7 +3,7 @@ import { SavedTest } from '@/lib/types';
 import { TestStorageService } from '@/lib/storage-service';
 import { IntegrationService } from '@/lib/integration-service';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Loader2, Github } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 

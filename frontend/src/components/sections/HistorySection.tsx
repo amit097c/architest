@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SavedTest, Collection } from '@/lib/types';
 import { TestStorageService } from '@/lib/storage-service';
 
@@ -20,7 +20,6 @@ const HistorySection: React.FC<{ collectionId?: string }> = ({ collectionId }) =
   const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all');
   const [collectionFilter, setCollectionFilter] = useState<'all' | 'uncategorized' | 'in-collection'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [showCollectionDropdown, setShowCollectionDropdown] = useState<{ [key: string]: boolean }>({});
   const [loading, setLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -308,7 +307,7 @@ const HistorySection: React.FC<{ collectionId?: string }> = ({ collectionId }) =
                                   <li 
                                     key={collection.id}
                                     className="text-sm p-2 hover:bg-gray-100 rounded cursor-pointer"
-                                    onClick={(e) => handleAddToCollection(testId, collection.id, e)}
+                                    onClick={(e) => handleAddToCollection(testId, collection.id || '', e)}
                                   >
                                     {collection.name}
                                   </li>

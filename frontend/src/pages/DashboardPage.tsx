@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { TestStorageService } from '@/lib/storage-service';
 import { SavedTest, Collection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const DashboardPage: React.FC = () => {
   const [tests, setTests] = useState<SavedTest[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [recentTests, setRecentTests] = useState<SavedTest[]>([]);
-  const [lastRunTest, setLastRunTest] = useState<SavedTest | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,35 +18,30 @@ const DashboardPage: React.FC = () => {
 
   const loadData = async () => {
     try {
-      setLoading(true);
       const allTests = await TestStorageService.getAllTests();
       const allCollections = await TestStorageService.getAllCollections();
     
     setTests(allTests);
     setCollections(allCollections);
     
-    // Get 5 most recent tests
-      const sortedTests = [...allTests].sort((a, b) => {
-        const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
-        const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
-        return dateB - dateA;
-      }).slice(0, 5);
-    
-    setRecentTests(sortedTests);
+    // Get recent tests (up to 5)
+    setRecentTests(
+      [...allTests]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5)
+    );
       
-      if (allTests.length > 0) {
-        const lastRun = [...allTests].sort((a, b) => {
-          const dateA = a.lastRun ? new Date(a.lastRun).getTime() : 0;
-          const dateB = b.lastRun ? new Date(b.lastRun).getTime() : 0;
-          return dateB - dateA;
-        })[0];
-        setLastRunTest(lastRun);
-      }
+    // Get all collections
+    setCollections(allCollections);
       
-      setLoading(false);
+    // Sort tests by last run date if available
+    /*const lastRun = [...allTests].sort((a, b) => {
+      const dateA = a.lastRun ? new Date(a.lastRun).getTime() : 0;
+      const dateB = b.lastRun ? new Date(b.lastRun).getTime() : 0;
+      return dateB - dateA;
+    })[0];*/
     } catch (error) {
       console.error('Error loading data:', error);
-      setLoading(false);
     }
   };
 
