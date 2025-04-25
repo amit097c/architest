@@ -24,23 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \ 
     && apt-get install -y nodejs
-# Copy application code
+
+# Copy application code including pre-existing utility folders
 COPY . .
 
-# Install Playwright + Newman in javascript_utils folder
-WORKDIR /app/agent/utils/javascript_utils
-RUN npm init -y \ 
-    && npm install -D @playwright/test \
-    && npm install newman \
-    && npx playwright install
-
-# Java Utilities setup
-WORKDIR /tmp
-RUN curl -L -o selenium-java-4.zip https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.31.0/selenium-java-4.31.0.zip \ 
-    && unzip selenium-java-4.zip -d /app/agent/utils/java_utils \
-    && curl -L -o chromedriver-mac-x64.zip https://storage.googleapis.com/chrome-for-testing-public/135.0.7049.114/mac-x64/chromedriver-mac-x64.zip \
-    && unzip chromedriver-mac-x64.zip -d /app/agent/utils/java_utils \
-    && rm selenium-java-4.zip chromedriver-mac-x64.zip
+# Ensure Playwright is installed correctly in development
+RUN cd /app/agent/utils/javascript_utils && npx playwright install chromium
 
 # Go back to root app dir
 WORKDIR /app
@@ -70,25 +59,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && find /usr/local -type d -name '__pycache__' -exec rm -rf {} +
 
-# Install Node.js and JS tools
+# Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \ 
-    && apt-get install -y nodejs \
-    && cd /app/agent/utils/javascript_utils \
-    && npm init -y \
-    && npm install -D @playwright/test \
-    && npm install newman \
-    && npx playwright install \
-    && cd /app
+    && apt-get install -y nodejs
 
-# Install Java utils
-RUN curl -L -o selenium-java-4.zip https://github.com/SeleniumHQ/selenium/releases/download/selenium-4.31.0/selenium-java-4.31.0.zip \ 
-    && unzip selenium-java-4.zip -d /app/agent/utils/java_utils \
-    && curl -L -o chromedriver-mac-x64.zip https://storage.googleapis.com/chrome-for-testing-public/135.0.7049.114/mac-x64/chromedriver-mac-x64.zip \
-    && unzip chromedriver-mac-x64.zip -d /app/agent/utils/java_utils \
-    && rm selenium-java-4.zip chromedriver-mac-x64.zip
-
-# Copy application code
+# Copy application code including pre-existing utility folders
 COPY . .
+
+# Ensure Playwright is installed correctly in production
+RUN cd /app/agent/utils/javascript_utils && npx playwright install chromium
 
 # Change ownership to the non-root user
 RUN chown -R appuser:appuser /app
