@@ -4,7 +4,6 @@ selenium
 validators
 sse_starlette
 aiohttp
-playwright==1.42.0
 uvicorn==0.29.0
 fastapi==0.110.0
 python-dotenv

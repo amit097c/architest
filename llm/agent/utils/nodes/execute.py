@@ -321,6 +321,7 @@ def execute_postman_collection(state, writer: StreamWriter):
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
+    
     print("inside execute_postman_collection")
     script_content = state["messages"][-1].content
     state["last_script"] = script_content
@@ -389,10 +390,11 @@ def execute_postman_collection(state, writer: StreamWriter):
                 state["assertion_errors"] = [line for line in output.split('\n') if "AssertionError" in line]
         else:
             writer({"type": "success", "message": "API tests executed successfully"})
-            state["completed_steps"] = state["completed_steps"] + [state["current_step"]]
-            state["current_step_index"] = state["current_step_index"] + 1
-            state["current_step"] = state["steps_list"][state["current_step_index"]] if state["current_step_index"] < len(state["steps_list"]) else None
+            state["completed_steps"] = [state["current_step"]]  # All steps completed
+            state["current_step_index"] = 1  # Mark as completed
+            state["current_step"] = None  # No more steps
             state["has_errors"] = False
+            state["accumulated_script"] = script_content
 
     finally:
         os.unlink(new_script_path)

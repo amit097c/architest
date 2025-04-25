@@ -25,17 +25,18 @@ def initialize_step_execution(state, writer: StreamWriter):
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
-    writer({"type": "info", "message": "Initializing step-by-step test execution"})
     
     steps_list = [step.strip() for step in state["test_steps"].strip().split('\n') if step.strip()]
     framework = state.get("framework", "playwright")
     language = state.get("language", "python")
     
     if framework == "postman":
+        # For Postman, combine all steps into a single step
+        combined_steps = "\n".join(steps_list)
         updated_state = {
             "current_step_index": 0,
-            "steps_list": steps_list,
-            "current_step": steps_list[0] if steps_list else None,
+            "steps_list": [combined_steps],  # All steps as one
+            "current_step": combined_steps,
             "completed_steps": [],
             "accumulated_script": "",
         }
@@ -280,11 +281,35 @@ async def preprocess_html_for_selectors(html_content, url: str = "about:blank") 
     return selector_data
 
 
-# Function to process the current test step
 def process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, prompt_template_postman, writer: StreamWriter):
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
+        
+    framework = state.get("framework", "playwright")
+    
+    if framework == "postman":
+        writer({"type": "info", "message": "Generating Postman collection"})
+        prompt_vars = {
+            "api_endpoint": state.get("api_endpoint", ""),
+            "api_method": state.get("api_method", "GET"),
+            "api_payload": state.get("api_payload", "{}"),
+            "test_steps": state["current_step"]  # All steps are combined here
+        }
+        
+        # Generate complete Postman collection at once
+        response = llm.invoke(prompt_template_postman.invoke(prompt_vars))
+        cleaned_content = clean_script_response(response.content)
+        
+        return {
+            "messages": [{"role": "assistant", "content": cleaned_content}],
+            "max_retries": state["max_retries"],
+            "last_script": cleaned_content,
+            "current_step_index": 1,  # Mark as completed
+            "completed_steps": [state["current_step"]],
+            "current_step": None  # No more steps needed
+        }
+        
     writer({"type": "info", "message": f"Processing step {state['current_step_index'] + 1}/{len(state['steps_list'])}: {state['current_step']}"})
     
     is_first_step = state["current_step_index"] == 0
