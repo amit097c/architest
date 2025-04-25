@@ -21,6 +21,7 @@ env:
   OPENAI_API_MODEL: gpt-4
   OPENAI_API_VERSION: 2025-01-01-preview
   AZURE_OPENAI_ENDPOINT: https://architest-openai.openai.azure.com/
+  COSMOS_DB_URI_SECRET_REF: cosmosdb-uri
   # OPENAI_API_DEPLOYMENT is only needed if using Azure OpenAI
 
 jobs:
@@ -93,7 +94,7 @@ jobs:
           imageToDeploy: ${{ env.REGISTRY }}/architest/backend:${{ github.sha }}
           targetPort: 8001
           ingress: external
-          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }}"
+          environmentVariables: "PYTHONUNBUFFERED=1 ENV=production LLM_URL=${{ env.LLM_URL }} BACKEND_URL=${{ env.BACKEND_URL }} FRONTEND_URL=${{ env.FRONTEND_URL }} MONGODB_URI=secretref:${{ env.COSMOS_DB_URI_SECRET_REF }}"
 
       - name: Deploy LLM to Azure Container Apps
         uses: azure/container-apps-deploy-action@v1
