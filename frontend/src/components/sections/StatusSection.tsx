@@ -30,8 +30,7 @@ const StatusSection: React.FC<StatusSectionProps> = ({
   events,
   iterations,
   duration,
-  statusTestErrors: testErrors,
-  isApiTest = false
+  statusTestErrors: testErrors
 }) => {
   // Calculate duration if start and end times are available
   const getDuration = () => {

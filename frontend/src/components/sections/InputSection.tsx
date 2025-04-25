@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Play, RefreshCw, Loader } from "lucide-react";
+import { Play, Loader } from "lucide-react";
 
 type Framework = 'playwright' | 'cypress' | 'selenium';
 type Language = 'python' | 'javascript' | 'java';
@@ -58,12 +58,6 @@ const InputSection: React.FC<InputSectionProps> = ({
   setMaxRetries,
   framework,
   setFramework,
-  isMultiPage,
-  setIsMultiPage,
-  multiPageUrls,
-  setMultiPageUrls,
-  includeApi,
-  setIncludeApi,
   status,
   generateTestScript,
   language,
