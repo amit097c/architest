@@ -48,8 +48,12 @@ services:
     ports:
       - "${LLM_PORT:-8000}:8000"
     volumes:
-      - ./llm:/app
-      - ./llm/chroma_db:/app/chroma_db
+      - type: bind
+        source: ./llm/server.py
+        target: /app/server.py
+      - type: bind
+        source: ./llm/chroma_db
+        target: /app/chroma_db
     environment:
       - PYTHONUNBUFFERED=1
       - ENV=${ENV:-development}
