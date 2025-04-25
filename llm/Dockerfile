@@ -37,7 +37,9 @@ WORKDIR /app
 COPY . .
 
 # Ensure Playwright is installed correctly in development
-RUN cd /app/agent/utils/javascript_utils && npx playwright install chromium
+WORKDIR /app/agent/utils/javascript_utils
+RUN npx playwright install --with-deps && npx playwright install chromium
+WORKDIR /app
 
 # Go back to root app dir
 WORKDIR /app
@@ -83,7 +85,10 @@ WORKDIR /app
 COPY . .
 
 # Ensure Playwright is installed correctly in production
-RUN cd /app/agent/utils/javascript_utils && npx playwright install chromium
+WORKDIR /app/agent/utils/javascript_utils
+RUN PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright npx playwright install --with-deps && \
+    PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright npx playwright install chromium
+WORKDIR /app
 
 # Change ownership to the non-root user
 RUN chown -R appuser:appuser /app
