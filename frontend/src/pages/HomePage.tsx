@@ -53,7 +53,8 @@ const HomePage: React.FC = () => {
     iterations,
     duration,
     statusTestErrors,
-    addStatusEvent
+    addStatusEvent,
+    cancelGeneration
   } = useArchiTestContext();
 
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -160,7 +161,7 @@ const HomePage: React.FC = () => {
                         key={collection.id}
                         className={`text-sm p-2 hover:bg-gray-100 rounded cursor-pointer ${collection.color} ${selectedCollectionId === collection.id ? 'border border-primary' : ''}`}
                         onClick={() => {
-                          setSelectedCollectionId(collection.id);
+                          setSelectedCollectionId(collection.id || '');
                           setShowCollectionDropdown(false);
                         }}
                       >
@@ -218,6 +219,7 @@ const HomePage: React.FC = () => {
             setApiMethod={setApiMethod}
             apiPayload={apiPayload}
             setApiPayload={setApiPayload}
+            onCancel={cancelGeneration}
           />
 
           <TestResultsSection 

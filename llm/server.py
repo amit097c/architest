@@ -9,8 +9,25 @@ import asyncio
 from agent.agent import step_graph
 from typing import Optional, List
 from shared_utils.job_control import job_cancellation_flags
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",     # Development frontend
+        "http://localhost:3000",     # Production frontend (local testing)
+        "http://frontend",           # Docker internal frontend
+        "http://frontend:5173",      # Docker internal frontend (dev)
+        "http://frontend:80",        # Docker internal frontend (prod)
+        "https://architest-frontend.gentlehill-f0a0de75.canadacentral.azurecontainerapps.io",  # Azure Container Apps frontend
+        "*",  # Temporarily allow all origins for testing
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Global queue to hold the streaming data
 data_queue = asyncio.Queue()

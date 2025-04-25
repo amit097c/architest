@@ -180,4 +180,4 @@ def create_bug_ticket_for_failed_test(original_ticket_id: str, failure_message: 
     }
     link_response = requests.post(link_url, json=link_payload, headers=headers, auth=auth)
     link_response.raise_for_status()
-    print(f"Linked {new_ticket} to {original_ticket_id}")
+    print(f"Linked {new_ticket} to {original_ticket_id}") 

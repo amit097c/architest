@@ -69,6 +69,8 @@ interface ArchiTestContextProps {
     details?: string
   ) => void;
   resetTest: () => void;
+  cancelGeneration: () => Promise<void>;
+  eventSource: EventSource | null;
 }
 
 const ArchiTestContext = createContext<ArchiTestContextProps | undefined>(undefined);
@@ -111,6 +113,7 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
   const [duration, setDuration] = useState(0);
   const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
   const [triggerEffect, setTriggerEffect] = useState(false);
+  const [eventSource, setEventSource] = useState<EventSource | null>(null);
 
   // Add event to status log
   const addStatusEvent = (
@@ -142,15 +145,41 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
     setDuration(0);
   };
 
+  const cancelGeneration = async () => {
+    try {
+      // Cancel at backend
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/cancel_generation`);
+      
+      // Cancel at LLM server
+      await axios.post(`${import.meta.env.VITE_LLM_URL}/cancel_generation`);
+      
+      // Close the event source
+      if (eventSource) {
+        eventSource.close();
+        setEventSource(null);
+      }
+      
+      // Reset state
+      setStatus("idle");
+      
+      addStatusEvent("info", "Test generation cancelled");
+      
+    } catch (error) {
+      console.error("Error cancelling test generation:", error);
+      addStatusEvent("error", "Failed to cancel test generation");
+    }
+  };
+
   // Event source listener for real-time updates
   useEffect(() => {
-    const eventSource = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
+    const eventSourceInstance = new EventSource(`${import.meta.env.VITE_BACKEND_URL}/api/stream`);
+    setEventSource(eventSourceInstance);
 
-    eventSource.onopen = () => {
+    eventSourceInstance.onopen = () => {
       console.log("Connection established to /stream");
     };
 
-    eventSource.onmessage = (event) => {
+    eventSourceInstance.onmessage = (event) => {
       const newEvent = JSON.parse(event.data);
       let details;
 
@@ -197,13 +226,14 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
       }
     };
 
-    eventSource.onerror = (error) => {
+    eventSourceInstance.onerror = (error) => {
       console.error('EventSource failed:', error);
-      eventSource.close();
+      eventSourceInstance.close();
     };
 
     return () => {
-      eventSource.close();
+      eventSourceInstance.close();
+      setEventSource(null);
     };
   }, [triggerEffect, framework]);
 
@@ -217,7 +247,7 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
 
     if (useJira) {
       try {
-        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/fetch_jira_test_steps`, {
+        const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/fetch_jira_test_steps`, {
           issue_key: jiraTicketId,
           email: jiraEmail,
           api_token: jiraToken,
@@ -345,7 +375,9 @@ export const ArchiTestProvider: React.FC<{children: ReactNode}> = ({ children })
         apiPayload,
         setApiPayload,
         addStatusEvent,
-        resetTest
+        resetTest,
+        cancelGeneration,
+        eventSource
       }}
     >
       {children}
