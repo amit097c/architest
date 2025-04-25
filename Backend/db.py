@@ -17,7 +17,7 @@ from pydantic_core import core_schema
 # MongoDB connection
 MONGODB_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/architest")
 client = AsyncIOMotorClient(MONGODB_URI)
-db = client.get_database()
+db = client.get_database("architest")
 
 # Collections
 tests_collection = db.tests
