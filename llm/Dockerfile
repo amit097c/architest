@@ -25,6 +25,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \ 
     && apt-get install -y nodejs
 
+# Copy package files first to leverage Docker caching
+COPY ./agent/utils/javascript_utils/package*.json /app/agent/utils/javascript_utils/
+
+# Install npm dependencies
+WORKDIR /app/agent/utils/javascript_utils
+RUN npm ci
+WORKDIR /app
+
 # Copy application code including pre-existing utility folders
 COPY . .
 
@@ -62,6 +70,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \ 
     && apt-get install -y nodejs
+
+# Copy package files first to leverage Docker caching
+COPY ./agent/utils/javascript_utils/package*.json /app/agent/utils/javascript_utils/
+
+# Install npm dependencies
+WORKDIR /app/agent/utils/javascript_utils
+RUN npm ci
+WORKDIR /app
 
 # Copy application code including pre-existing utility folders
 COPY . .
