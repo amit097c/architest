@@ -165,7 +165,7 @@ class ScriptBuilderJava:
             "public class GeneratedTest {\n"
             "  public static void main(String[] args) {\n"
             "    ChromeOptions options = new ChromeOptions();\n"
-            "    options.addArguments(\"--headless=new\", \"--no-sandbox\", \"--disable-dev-shm-usage\", \"--user-data-dir=/tmp/chrome-user-data\");\n"
+            "    options.addArguments(\"--headless=new\", \"--no-sandbox\", \"--disable-dev-shm-usage\");\n"
             "    WebDriver driver = new ChromeDriver(options);\n"
             f"    driver.get(\"{self.base_url}\");\n"
         )
