@@ -24,7 +24,7 @@ interface InputSectionProps {
   setMultiPageUrls: Dispatch<SetStateAction<string[]>>;
   includeApi: boolean;
   setIncludeApi: (includeApi: boolean) => void;
-  status: string;
+  status: 'idle' | 'extracting-and-processing-html' | 'generating' | 'running' | 'refining' | 'passed' | 'failed';
   generateTestScript: () => void;
   language: Language;
   setLanguage: Dispatch<SetStateAction<Language>>;
@@ -46,6 +46,7 @@ interface InputSectionProps {
   setApiMethod: (method: string) => void;
   apiPayload: string;
   setApiPayload: (payload: string) => void;
+  onCancel: () => Promise<void>;
 }
 
 const InputSection: React.FC<InputSectionProps> = ({
@@ -84,7 +85,8 @@ const InputSection: React.FC<InputSectionProps> = ({
   apiMethod,
   setApiMethod,
   apiPayload,
-  setApiPayload
+  setApiPayload,
+  onCancel
 }) => {
   // Function to handle the generation of test scripts
   const apiMethods = [
@@ -441,6 +443,7 @@ const InputSection: React.FC<InputSectionProps> = ({
         )}
       </CardContent>
       <CardFooter>
+      <div className="flex flex-col w-full space-y-2">
         <Button
           className="w-full"
           onClick={generateTestScript}
@@ -462,6 +465,18 @@ const InputSection: React.FC<InputSectionProps> = ({
            status === "passed" ? "Tests Passed" :
            status === "failed" ? "Tests Failed" : ""}
         </Button>
+
+        {/* Show Stop button when script is running */}
+        {(status === "generating" || status === "running" || status === "refining" || status === "extracting-and-processing-html") && (
+          <Button
+            variant="destructive"
+            className="w-full"
+            onClick={onCancel}
+          >
+            Stop Execution
+          </Button>
+        )}
+      </div>
       </CardFooter>
     </Card>
   );

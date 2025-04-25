@@ -6,7 +6,8 @@ from typing import List, Dict, Any
 from playwright.async_api import async_playwright
 import json
 import asyncio
-from agent.utils.jira import add_comment_to_jira, move_ticket_to_next_status, create_bug_ticket_for_failed_test
+from shared_utils.jira import add_comment_to_jira, move_ticket_to_next_status, create_bug_ticket_for_failed_test
+from shared_utils.job_control import job_cancellation_flags
 
 # Optional caching setup if available
 try:
@@ -21,6 +22,9 @@ except ImportError:
 # Function to initialize the step-by-step test execution
 def initialize_step_execution(state, writer: StreamWriter):
     """Initialize test execution and set up appropriate script builder."""
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
     writer({"type": "info", "message": "Initializing step-by-step test execution"})
     
     steps_list = [step.strip() for step in state["test_steps"].strip().split('\n') if step.strip()]
@@ -276,9 +280,11 @@ async def preprocess_html_for_selectors(html_content, url: str = "about:blank") 
     return selector_data
 
 
-
 # Function to process the current test step
 def process_current_step(state, llm, prompt_template_step, prompt_template_selenium, prompt_template_playwright_js, prompt_template_postman, writer: StreamWriter):
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
     writer({"type": "info", "message": f"Processing step {state['current_step_index'] + 1}/{len(state['steps_list'])}: {state['current_step']}"})
     
     is_first_step = state["current_step_index"] == 0
@@ -404,6 +410,7 @@ def process_current_step(state, llm, prompt_template_step, prompt_template_selen
         "last_script": cleaned_content,
     }
 
+
 def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_prompt_selenium, error_prompt_postman, writer: StreamWriter):
     """Retry the current failed step with error information."""
 
@@ -413,6 +420,10 @@ def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_
 
     writer({"type": "info", "message": f"Refining test script {current_step_index + 1} (Attempt {state['retry_count']}/{max_retries})"})
     print("Retry count:", state["retry_count"], "/", max_retries)
+
+    if job_cancellation_flags.get("current_job"):
+        writer({"type": "info", "message": "Test generation cancelled"})
+        return {**state, "stop_execution": True}
 
     if state["retry_count"] >= max_retries:
         writer({

@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
@@ -5,6 +8,7 @@ import json
 import asyncio
 from agent.agent import step_graph
 from typing import Optional, List
+from shared_utils.job_control import job_cancellation_flags
 
 app = FastAPI()
 
@@ -89,6 +93,8 @@ async def generate_tests(request: Request):
     except Exception as e:
         print("Test generation failed:", str(e))
         raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
+    finally:
+        job_cancellation_flags["current_job"] = False
 
 
 # SSE endpoint to stream test results
@@ -134,3 +140,10 @@ async def root():
             }
         ]
     }
+
+@app.post("/cancel_generation")
+async def cancel_generation():
+    """Cancel ongoing test generation"""
+    job_cancellation_flags["current_job"] = True
+    await data_queue.put({"type": "info", "message": "Test generation cancelled"})
+    return {"status": "cancelled"}

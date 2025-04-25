@@ -15,7 +15,9 @@ Key Features:
 - Uses `aiohttp` for asynchronous requests and `sse-starlette` for Server-Sent Events (SSE).
 
 """
-
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 from typing import List
 from fastapi import FastAPI, HTTPException, Request
@@ -31,11 +33,11 @@ import requests
 import asyncio
 import time
 from datetime import datetime
-import os
-from jira_client import jira_router
+from shared_utils.jira import jira_router
 from storage_routes import router as storage_router
 from test_runner import router as runner_router
 from typing import List, Optional, Dict
+from shared_utils.job_control import job_cancellation_flags
 
 app = FastAPI()
 html_processor = HTMLProcessor()
@@ -210,3 +212,10 @@ async def stream():
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "time": datetime.now().isoformat()}
+
+@app.post("/cancel_generation")
+async def cancel_generation():
+    """Cancel ongoing test generation"""
+    # Set the cancellation flag
+    job_cancellation_flags["current_job"] = True
+    return {"status": "cancelled"}
