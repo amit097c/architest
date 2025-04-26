@@ -100,7 +100,16 @@ class ScriptBuilderJS:
 
     def render_script(self):
         imports = "const { test, expect } = require('@playwright/test');\n\n"
-        setup = f"test('Generated Test', async ({{ page }}) => {{\n    await page.goto('{self.base_url}');\n"
+        
+        # Add a configuration for consistent execution
+        imports += "// Configuration for better stability\n"
+        imports += "const config = {\n"
+        imports += "  timeout: 30000,\n"
+        imports += "  retries: 1,\n"
+        imports += "  reporter: 'list'\n"
+        imports += "};\n\n"
+        
+        setup = f"test('Generated Test', async ({{ page }}) => {{\n    // Navigate to the initial URL\n    await page.goto('{self.base_url}');\n"
 
         for step in self.steps:
             setup += step.render_test_call() + "\n"
@@ -119,13 +128,70 @@ class JavaTestStep:
         self.func_str = func_str
         self.description = description
         self.name = self.extract_function_name()
+        # Extract step number from the description if available
+        self.step_number = self.extract_step_number()
+
+    def extract_step_number(self):
+        """Extract step number from description or fallback to a default."""
+        import re
+        # Try to extract from the description first
+        if self.description:
+            match = re.search(r'Step (\d+):', self.description)
+            if match:
+                return int(match.group(1))
+        
+        # If not found in description, try to extract from function name
+        if self.name:
+            match = re.search(r'step(\d+)_', self.name)
+            if match:
+                return int(match.group(1))
+        
+        # Default to 1 if no step number found
+        return 1
 
     def extract_function_name(self):
         import re
-        match = re.search(r'public void (\w+)', self.func_str)
-        return match.group(1) if match else None
-
+        
+        # Try to find the method name using standard regex pattern
+        match = re.search(r'public\s+(?:static\s+)?void\s+(\w+)\s*\(', self.func_str)
+        
+        if match:
+            return match.group(1)
+        
+        # If no match is found, check if this is a fixed/refined script that may have different formatting
+        # Look for any method name pattern with WebDriver parameter
+        alt_match = re.search(r'(?:public|private)\s+(?:static\s+)?void\s+(\w+)\s*\(\s*WebDriver', self.func_str)
+        if alt_match:
+            return alt_match.group(1)
+        
+        # Last resort: try to extract a name from the first line (useful for errors)
+        first_line = self.func_str.split('\n')[0] if '\n' in self.func_str else self.func_str
+        basic_match = re.search(r'step\d+_\w+', first_line)
+        if basic_match:
+            return basic_match.group(0)
+            
+        # If no name found and we have a description, create a name from it
+        if self.description:
+            # Extract step number and create a camelCase name from description
+            step_num = self.extract_step_number()
+            # Create a name from description text (removing "Step X: " prefix if present)
+            desc_text = re.sub(r'^Step \d+:\s*', '', self.description)
+            # Replace non-alphanumeric chars with spaces, title case it, remove spaces
+            name_base = ''.join(word.capitalize() for word in re.sub(r'[^a-zA-Z0-9\s]', ' ', desc_text).split())
+            # Ensure first letter is lowercase for camelCase
+            if name_base:
+                name_base = name_base[0].lower() + name_base[1:]
+                return f"step{step_num}_{name_base}"
+        
+        # Final fallback
+        print(f"WARNING: Could not extract function name from Java code: {self.func_str[:100]}...")
+        return f"step{self.extract_step_number()}_unknown"
+        
     def render_test_call(self):
+        # Only render if we have a valid name (not None or empty)
+        if not self.name:
+            print("WARNING: Cannot render test call without function name. Check Java code.")
+            return f"// ERROR: Missing function name for step: {self.description}"
         return f"{self.name}(driver); // {self.description}"
 
     def render_function(self):
@@ -157,17 +223,26 @@ class ScriptBuilderJava:
             "import org.openqa.selenium.chrome.ChromeOptions;\n"
             "import org.openqa.selenium.support.ui.ExpectedConditions;\n"
             "import org.openqa.selenium.support.ui.WebDriverWait;\n"
-            "import java.time.Duration;\n\n"
+            "import java.time.Duration;\n"
+            "import org.openqa.selenium.interactions.Actions;\n"
+            "import org.openqa.selenium.JavascriptExecutor;\n"
+            "import java.util.concurrent.TimeUnit;\n\n"
         )
 
         # Class and main method
         header = (
             "public class GeneratedTest {\n"
             "  public static void main(String[] args) {\n"
+            "    // Configure Chrome options for better stability\n"
             "    ChromeOptions options = new ChromeOptions();\n"
             "    options.addArguments(\"--headless=new\", \"--no-sandbox\", \"--disable-dev-shm-usage\");\n"
+            "    options.addArguments(\"--window-size=1920,1080\");\n"
+            "    options.setPageLoadTimeout(Duration.ofSeconds(60));\n\n"
             "    WebDriver driver = new ChromeDriver(options);\n"
-            f"    driver.get(\"{self.base_url}\");\n"
+            "    // Set implicit wait for better element detection\n"
+            "    driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(10));\n"
+            f"    // Navigate to the initial URL\n"
+            f"    driver.get(\"{self.base_url}\");\n\n"
         )
  
 
@@ -176,13 +251,28 @@ class ScriptBuilderJava:
 
         header += "    driver.quit();\n"
         header += "  }\n\n"
+        
+        # Add helper methods
+        helper_methods = (
+            "  /**\n"
+            "   * Helper method to pause execution for the specified milliseconds\n"
+            "   * @param millis time to sleep in milliseconds\n"
+            "   */\n"
+            "  private static void sleep(long millis) {\n"
+            "    try {\n"
+            "      Thread.sleep(millis);\n"
+            "    } catch (InterruptedException e) {\n"
+            "      e.printStackTrace();\n"
+            "    }\n"
+            "  }\n\n"
+        )
 
         # Include all methods inside the class (and mark them as static)
         methods = "\n\n".join(
             self._make_static(step.render_function()) for step in self.steps
         )
 
-        return imports + header + methods + "\n}"
+        return imports + header + helper_methods + methods + "\n}"
 
     def _make_static(self, method_str: str) -> str:
         """

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Play, Loader } from "lucide-react";
 
-type Framework = 'playwright' | 'cypress' | 'selenium';
+type Framework = 'playwright' | 'selenium';
 type Language = 'python' | 'javascript' | 'java';
 
 interface InputSectionProps {
@@ -109,10 +109,6 @@ const InputSection: React.FC<InputSectionProps> = ({
         return [
           { value: "java", label: "Java" }
         ];
-      case "cypress":
-        return [
-          { value: "javascript", label: "JavaScript" }
-        ];
       default:
         return [];
     }
@@ -136,8 +132,7 @@ const InputSection: React.FC<InputSectionProps> = ({
     }
     return [
       { value: "playwright", label: "Playwright" },
-      { value: "selenium", label: "Selenium" },
-      { value: "cypress", label: "Cypress" }
+      { value: "selenium", label: "Selenium" }
     ];
   };
   // Define default test steps for API and UI tests

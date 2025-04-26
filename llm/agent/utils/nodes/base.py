@@ -418,7 +418,10 @@ def process_current_step(state, llm, prompt_template_step, prompt_template_selen
     elif framework == "playwright" and language == "javascript":
         test_step = JavaScriptTestStep(cleaned_content, state["current_step"])
     elif framework == "selenium":
-        test_step = JavaTestStep(cleaned_content, state["current_step"])
+        # For Java Selenium tests, extract the step number from the current step index for consistency
+        step_number = state.get("current_step_index", 0) + 1
+        java_step = f"Step {step_number}: {state['current_step']}"
+        test_step = JavaTestStep(cleaned_content, java_step)
     else:
         raise ValueError("Unsupported framework/language")
     
@@ -523,7 +526,10 @@ def retry_step(state, llm, error_prompt_step, error_prompt_playwright_js, error_
         elif framework == "playwright" and language == "javascript":
             test_step = JavaScriptTestStep(cleaned_content, state["current_step"])
         elif framework == "selenium":
-            test_step = JavaTestStep(cleaned_content, state["current_step"])
+            # For Java Selenium tests, extract the step number from the current step index for consistency
+            step_number = state.get("current_step_index", 0) + 1
+            java_step = f"Step {step_number}: {state['current_step']}"
+            test_step = JavaTestStep(cleaned_content, java_step)
         else:
             test_step = None  # postman doesn't use test_step class
 

@@ -4,6 +4,7 @@ import subprocess
 import platform
 import re
 import shutil
+import json
 from langgraph.types import StreamWriter
 from agent.utils.get_html import clean_html, extract_automation_elements, optimize_html_for_llm
 from shared_utils.jira import add_comment_to_jira, move_ticket_to_next_status
@@ -142,12 +143,16 @@ def execute_step_script(state, writer: StreamWriter):
         return state
 
 def execute_selenium_script(state, writer: StreamWriter):
+    """Execute Java Selenium script with enhanced HTML capture and step-by-step execution"""
     print("inside execute_selenium_script")
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
+        
     script_builder = get_script_builder()
     step_script = script_builder.render_script()
+    script_content = state["messages"][-1].content
+    writer({"type": "info", "message": f"Executing step {state['current_step_index'] + 1}: {state['current_step']}"})
 
     print(f"step_script: {step_script}")
     state["last_script"] = step_script
@@ -160,9 +165,27 @@ def execute_selenium_script(state, writer: StreamWriter):
     class_name = match.group(1)
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        # Add file to save HTML content to
+        html_output_file = os.path.join(tmpdir, "latest_page.html")
+        
+        # Insert code to capture HTML to the script
+        modified_script = step_script.replace(
+            "driver.quit();", 
+            f"""
+            // Capture HTML for analysis before quitting
+            try {{
+                String html = (String) ((org.openqa.selenium.JavascriptExecutor) driver).executeScript("return document.documentElement.outerHTML");
+                java.nio.file.Files.write(java.nio.file.Paths.get("{html_output_file.replace('\\', '\\\\')}"), html.getBytes());
+            }} catch (Exception e) {{
+                System.err.println("Error capturing HTML: " + e.getMessage());
+            }}
+            driver.quit();
+            """
+        )
+        
         java_file_path = os.path.join(tmpdir, f"{class_name}.java")
         with open(java_file_path, "w") as f:
-            f.write(step_script)
+            f.write(modified_script)
 
         writer({"type": "info", "message": "Executing Java Selenium test script"})
 
@@ -216,39 +239,69 @@ def execute_selenium_script(state, writer: StreamWriter):
 
         if run_process.returncode != 0:
             writer({"type": "error", "message": "Execution failed", "errors": run_process.stderr})
+            writer({"type": "error", "message": "Test execution failed", "errors": run_process.stderr})
+            writer({"type": "script", "message": step_script})
             state["messages"].append({"role": "system", "content": f"Execution failed: {run_process.stderr}"})
             state["has_errors"] = True
             state["error_message"] = run_process.stderr
+            return state
         else:
-            writer({"type": "success", "message": "Java Selenium test executed successfully"})
+            writer({"type": "success", "message": f"Step {state['current_step_index'] + 1} executed successfully"})
             writer({"type": "script", "message": step_script})
-            writer({"type": "success", "message": "Tests executed successfully"})
-            state["messages"].append({"role": "system", "content": "Script executed successfully"})
-            state["has_errors"] = False
-            state["accumulated_script"] = step_script
-            state["completed_steps"] = state["completed_steps"] + [state["current_step"]]
-            state["current_step_index"] = state["current_step_index"] + 1
-            state["current_step"] = state["steps_list"][state["current_step_index"]] if state["current_step_index"] < len(state["steps_list"]) else None
-
-            # if state["current_step_index"] + 1 == len(state["steps_list"]):
-            #     if "SCRUM-" in state.get("jira_ticket_id", ""):
-            #         try:
-            #             add_comment_to_jira(state["jira_ticket_id"], "✅ Test script passed successfully via ArchiTest.")
-            #             move_ticket_to_next_status(state["jira_ticket_id"])
-            #         except Exception as e:
-            #             print(f"Jira update failed: {str(e)}")
-
-    return state
+            
+            # Process the captured HTML if available
+            latest_html = None
+            if os.path.exists(html_output_file):
+                try:
+                    with open(html_output_file, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                        
+                    if html:
+                        latest_html = clean_html(html)
+                        latest_html = extract_automation_elements(latest_html)
+                        latest_html = optimize_html_for_llm(latest_html)
+                        
+                        with open('latest_html_output.html', 'w', encoding='utf-8') as html_file:
+                            html_file.write(latest_html)
+                except Exception as e:
+                    writer({"type": "warning", "message": f"Error processing HTML: {str(e)}"})
+            
+            # If this is the last step, mark as complete
+            if state["current_step_index"] + 1 == len(state["steps_list"]):
+                writer({"type": "success", "message": "Tests executed successfully"})
+                
+                # Handle Jira integration if applicable
+                jira_id = state.get("jira_ticket_id")
+                if isinstance(jira_id, str) and "SCRUM-" in jira_id:
+                    try:
+                        add_comment_to_jira(state["jira_ticket_id"], "✅ Test script passed successfully via ArchiTest.", state["jira_email"], state["jira_token"], state["jira_domain"])
+                        move_ticket_to_next_status(state["jira_ticket_id"], state["jira_email"], state["jira_token"], state["jira_domain"])
+                    except Exception as e:
+                        print(f"Jira update failed: {str(e)}")
+                
+            return {
+                "html_content": latest_html if latest_html else state.get("html_content"),
+                "has_errors": False,
+                "error_message": None,
+                "completed_steps": state["completed_steps"] + [state["current_step"]],
+                "current_step_index": state["current_step_index"] + 1,
+                "current_step": state["steps_list"][state["current_step_index"] + 1] if state["current_step_index"] + 1 < len(state["steps_list"]) else None,
+                "accumulated_script": step_script,
+            }
 
 def execute_playwright_js_script(state, writer: StreamWriter):
+    """Execute JavaScript Playwright script with enhanced HTML capture and step-by-step execution"""
     print("inside execute_playwright_js_script")
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
+    
     script_builder = get_script_builder()
     step_script = script_builder.render_script()
+    script_content = state["messages"][-1].content
+    writer({"type": "info", "message": f"Executing step {state['current_step_index'] + 1}: {state['current_step']}"})
+    
     print(f"step_script: {step_script}")
-
     state["last_script"] = step_script
 
     # Fix path to javascript_utils
@@ -276,8 +329,20 @@ def execute_playwright_js_script(state, writer: StreamWriter):
         state["error_message"] = error_message
         return state
 
+    # Add code to capture HTML content after execution
+    modified_script = step_script.replace(
+        "});", 
+        """
+    // Capture HTML for analysis
+    await page.waitForLoadState('load');
+    const html = await page.content();
+    const fs = require('fs');
+    fs.writeFileSync('latest_page.html', html);
+});"""
+    )
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".spec.js", delete=False, dir=".") as f:
-        f.write(step_script)
+        f.write(modified_script)
         temp_path = f.name
 
     filename = os.path.basename(temp_path)
@@ -298,26 +363,65 @@ def execute_playwright_js_script(state, writer: StreamWriter):
         if process.returncode != 0:
             error_output = process.stderr if process.stderr else process.stdout
             writer({"type": "error", "message": "Test execution failed", "errors": error_output})
+            writer({"type": "script", "message": step_script})
             state["messages"].append({"role": "system", "content": f"Script execution failed: {error_output}"})
             state["has_errors"] = True
             state["error_message"] = error_output
+            return state
         else:
-            writer({"type": "success", "message": "JavaScript Playwright test executed successfully"})
+            writer({"type": "success", "message": f"Step {state['current_step_index'] + 1} executed successfully"})
             writer({"type": "script", "message": step_script})
-            writer({"type": "success", "message": "Tests executed successfully"})
-            state["messages"].append({"role": "system", "content": "Script executed successfully"})
-            state["has_errors"] = False
-            state["accumulated_script"] = step_script
-            state["completed_steps"] = state["completed_steps"] + [state["current_step"]]
-            state["current_step_index"] = state["current_step_index"] + 1
-            state["current_step"] = state["steps_list"][state["current_step_index"]] if state["current_step_index"] < len(state["steps_list"]) else None
+            
+            # Process HTML content if available
+            latest_html = None
+            html_file_path = os.path.join(JS_UTILS_DIR, 'latest_page.html')
+            if os.path.exists(html_file_path):
+                try:
+                    with open(html_file_path, 'r', encoding='utf-8') as f:
+                        html = f.read()
+                        
+                    if html:
+                        latest_html = clean_html(html)
+                        latest_html = extract_automation_elements(latest_html)
+                        latest_html = optimize_html_for_llm(latest_html)
+                        
+                        with open('latest_html_output.html', 'w', encoding='utf-8') as html_file:
+                            html_file.write(latest_html)
+                except Exception as e:
+                    writer({"type": "warning", "message": f"Error processing HTML: {str(e)}"})
+                    
+            # If this is the last step, mark as complete
+            if state["current_step_index"] + 1 == len(state["steps_list"]):
+                writer({"type": "success", "message": "Tests executed successfully"})
+                
+                # Handle Jira integration if applicable
+                jira_id = state.get("jira_ticket_id")
+                if isinstance(jira_id, str) and "SCRUM-" in jira_id:
+                    try:
+                        add_comment_to_jira(state["jira_ticket_id"], "✅ Test script passed successfully via ArchiTest.", state["jira_email"], state["jira_token"], state["jira_domain"])
+                        move_ticket_to_next_status(state["jira_ticket_id"], state["jira_email"], state["jira_token"], state["jira_domain"])
+                    except Exception as e:
+                        print(f"Jira update failed: {str(e)}")
+            
+            return {
+                "html_content": latest_html if latest_html else state.get("html_content"),
+                "has_errors": False,
+                "error_message": None,
+                "completed_steps": state["completed_steps"] + [state["current_step"]],
+                "current_step_index": state["current_step_index"] + 1,
+                "current_step": state["steps_list"][state["current_step_index"] + 1] if state["current_step_index"] + 1 < len(state["steps_list"]) else None,
+                "accumulated_script": step_script,
+            }
     finally:
-        os.unlink(new_script_path)
+        try:
+            os.unlink(new_script_path)
+        except:
+            pass
 
     return state
 
 def execute_postman_collection(state, writer: StreamWriter):
-    """Execute a Postman collection for API testing."""
+    """Execute a Postman collection for API testing with improved execution flow."""
     if job_cancellation_flags.get("current_job"):
         writer({"type": "info", "message": "Test generation cancelled"})
         return {**state, "stop_execution": True}
@@ -326,7 +430,8 @@ def execute_postman_collection(state, writer: StreamWriter):
     script_content = state["messages"][-1].content
     state["last_script"] = script_content
 
-    writer({"type": "script", "message": state["last_script"]})
+    writer({"type": "info", "message": "Executing API Test"})
+    writer({"type": "script", "message": script_content})
 
     print("\n=== Generated Script ===")
     print(script_content)
@@ -367,12 +472,15 @@ def execute_postman_collection(state, writer: StreamWriter):
     new_script_path = os.path.join(JS_UTILS_DIR, filename)
     shutil.move(temp_path, new_script_path)
 
+    # Create a file to capture the response data
+    response_file_path = os.path.join(JS_UTILS_DIR, "api_response.json")
+
     try:
         writer({"type": "info", "message": "Executing Postman collection"})
         
-        # Run newman (Postman CLI)
+        # Run newman (Postman CLI) with JSON reporter to capture response data
         process = subprocess.run(
-            [NEWMAN_PATH, "run", filename],
+            [NEWMAN_PATH, "run", filename, "--reporters", "json", "--reporter-json-export", "api_response.json"],
             capture_output=True,
             cwd=JS_UTILS_DIR,
             text=True
@@ -388,16 +496,50 @@ def execute_postman_collection(state, writer: StreamWriter):
             # Store the specific assertion errors for better retry context
             if "AssertionError" in output:
                 state["assertion_errors"] = [line for line in output.split('\n') if "AssertionError" in line]
+            return state
         else:
             writer({"type": "success", "message": "API tests executed successfully"})
-            state["completed_steps"] = [state["current_step"]]  # All steps completed
-            state["current_step_index"] = 1  # Mark as completed
-            state["current_step"] = None  # No more steps
-            state["has_errors"] = False
-            state["accumulated_script"] = script_content
+            
+            # Try to extract the API response data
+            if os.path.exists(os.path.join(JS_UTILS_DIR, "api_response.json")):
+                try:
+                    with open(os.path.join(JS_UTILS_DIR, "api_response.json"), 'r') as f:
+                        response_data = json.load(f)
+                        
+                    # Extract API responses for future steps
+                    api_results = {}
+                    if "run" in response_data and "executions" in response_data["run"]:
+                        for execution in response_data["run"]["executions"]:
+                            if "response" in execution and "stream" in execution["response"]:
+                                req_name = execution.get("item", {}).get("name", "unknown_request")
+                                try:
+                                    # Attempt to extract and parse JSON response data
+                                    stream_data = execution["response"]["stream"]["data"]
+                                    api_results[req_name] = json.loads(stream_data)
+                                except Exception:
+                                    api_results[req_name] = "Non-JSON response"
+                                    
+                    state["api_results"] = api_results
+                except Exception as e:
+                    writer({"type": "warning", "message": f"Error processing API response: {str(e)}"})
+            
+            return {
+                "completed_steps": [state["current_step"]],  # All steps completed
+                "current_step_index": 1,  # Mark as completed
+                "current_step": None,  # No more steps
+                "has_errors": False,
+                "accumulated_script": script_content,
+                "api_results": state.get("api_results", {})
+            }
 
     finally:
         os.unlink(new_script_path)
+        # Also clean up the response file
+        try:
+            if os.path.exists(os.path.join(JS_UTILS_DIR, "api_response.json")):
+                os.unlink(os.path.join(JS_UTILS_DIR, "api_response.json"))
+        except:
+            pass
     
     return state
 

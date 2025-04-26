@@ -183,13 +183,13 @@ prompt_template_selenium = ChatPromptTemplate(
         (
             "system",
             """
-            You are a senior QA engineer writing **Java (Selenium WebDriver)** test step methods.
+            You are a senior QA automation engineer writing **Java (Selenium WebDriver)** test step methods.
 
-            Your task is to write a **single Java method** implementing the test step described below. Follow Selenium best practices and ensure your code is robust and reliable.
+            Your task is to generate a **single Java method** implementing the test step described below, following modern Selenium best practices and ensuring maximum robustness.
 
             ---
 
-            ### 🚀 Test Step:
+            ### 📋 Current Test Step to Implement:
             {current_step}
 
             ### Previous Steps (Context):
@@ -212,49 +212,95 @@ prompt_template_selenium = ChatPromptTemplate(
 
             ---
 
-            ### ✅ Guidelines:
+            ### 🚀 Critical Implementation Guidelines:
 
-            1. **Method Signature**:
+            1. **Function Signature**:
+                ```java
+                public void stepX_descriptiveName(WebDriver driver) {{
+                    // step implementation
+                }}
+                ```
+                - Replace `X` with the step number.
+                - Replace `descriptiveName` with a short description based on `{current_step}`.
+
+            2. **Locator Strategy (Priority Order)**:
+                - Prefer `By.cssSelector("[data-testid='id']")` for stable attributes.
+                - If not available, use `By.linkText("text")` or `By.xpath("//tag[contains(text(),'Text')]")` for visible text.
+                - Fallbacks: `By.name`, `By.id`, `By.className`.
+                - Never default to XPath unless necessary.
+
+            3. **Explicit Waits**:
+                - Always use `WebDriverWait` for visibility and clickability:
+                ```java
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                WebElement element = wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("...")));
+                wait.until(ExpectedConditions.elementToBeClickable(element));
+                ```
+
+            4. **Scroll Handling**:
+                - If the element is not immediately visible:
+                ```java
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({{block: 'center'}});", element);
+                sleep(500);
+                ```
+
+            5. **Handling Ambiguity / Multiple Matches**:
+                - If multiple elements match the locator:
+                    - **Filter by Text**:
+                        ```java
+                        List<WebElement> elements = driver.findElements(By.cssSelector("..."));
+                        WebElement target = elements.stream()
+                            .filter(e -> e.getText().trim().equals("Expected Text"))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException("Element not found"));
+                        ```
+                    - **Filter by Attribute**:
+                        ```java
+                        WebElement target = elements.stream()
+                            .filter(e -> "expected-href".equals(e.getAttribute("href")))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException("Element not found"));
+                        ```
+                    - **Chain from a Container**:
+                        ```java
+                        WebElement container = driver.findElement(By.id("container-id"));
+                        WebElement target = container.findElement(By.xpath(".//tag[contains(text(),'Text')]"));
+                        ```
+
+            6. **Action After Wait**:
+                - Click or interact only after visibility and clickability are confirmed.
+
+            7. **Navigation or Page Load Wait**:
+                - If the click triggers navigation, wait for the page load:
+                ```java
+                wait.until(webDriver -> ((JavascriptExecutor) webDriver).executeScript("return document.readyState").equals("complete"));
+                ```
+
+            8. **Sleep Usage**:
+                - Always use the existing `sleep(long millis)` helper method after scroll and page transitions.
+
+            9. **Output Rules**:
+                - Only return the Java method code, no imports, no extra comments unless essential.
+
+            Example method:
             ```java
-            public void stepX_descriptiveName(WebDriver driver) {{
-                // step implementation
+            public void step1_clickSubmitButton(WebDriver driver) {{
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+
+                WebElement submitButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("submit")));
+                jsExecutor.executeScript("arguments[0].scrollIntoView({{block: 'center'}});", submitButton);
+                sleep(500);
+
+                wait.until(ExpectedConditions.elementToBeClickable(submitButton)).click();
+                wait.until(webDriver -> ((JavascriptExecutor) webDriver).executeScript("return document.readyState").equals("complete"));
             }}
             ```
-
-            2. **Element Locators** (in this order):
-                - `By.cssSelector("[data-testid='id']")` for stable attributes
-                - `By.xpath(...)` or `By.linkText(...)` for unique text
-                - `By.name`, `By.id`, or `By.className` as fallback
-
-            3. **Always use explicit waits**:
-            ```java
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-            WebElement button = wait.until(ExpectedConditions.elementToBeClickable(By.id("submit")));
-            button.click();
-            ```
-
-            4. **API Interactions (if any)**: Simulate HTTP requests using libraries like OkHttp or RestAssured, but skip actual implementation unless required.
-
-            5. **Return Type**: `void`
-
-            6. Output only valid Java code — no test classes, no `main()` or boilerplate.
-
-            Example return:
-            ```java
-            public void step1_clickSubmit(WebDriver driver) {{
-                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-                WebElement button = wait.until(ExpectedConditions.elementToBeClickable(By.id("submit")));
-                button.click();
-            }}
-            ```
-
-            Only return the function. No wrapper code or comments unless essential.
             """
         ),
         MessagesPlaceholder("messages"),
     ]
 )
-
 
 
 # Define the error prompt template for Selenium
@@ -263,9 +309,9 @@ error_prompt_selenium = ChatPromptTemplate(
         (
             "system",
             """
-            You are a professional QA engineer experienced in debugging **Selenium WebDriver tests written in Java**.
+            You are a senior QA engineer specializing in debugging and improving **Java Selenium WebDriver** test step methods.
 
-            Your task is to FIX the following Java function that failed execution, using Selenium best practices.
+            Your task is to **fix** the provided Java method that failed, using Selenium best practices for robustness, visibility, and dynamic page handling.
 
             ---
 
@@ -274,7 +320,7 @@ error_prompt_selenium = ChatPromptTemplate(
             {original_script}
             ```
 
-            ### ❌ Error Message:
+            ### ❌ Error Encountered:
             ```
             {error_message}
             ```
@@ -282,13 +328,13 @@ error_prompt_selenium = ChatPromptTemplate(
             ### 📋 Test Step:
             {current_step}
 
-            ### Other Steps Previously Generated:
+            ### Previous Context:
             {script_context}
 
-            ### Element Selectors Already Used:
+            ### Known Selectors:
             {selectors_context}
 
-            ### Target Page URL:
+            ### Target URL:
             {url}
 
             ### HTML Snapshot:
@@ -296,33 +342,57 @@ error_prompt_selenium = ChatPromptTemplate(
 
             ---
 
-            ### 🔧 Fixing Instructions:
+            ### 🛠️ Fixing Guidelines:
 
-            1. **Selector Problems**:
-                - If locator failed, try more stable options:
-                    - Prefer `By.id`, `By.name`, or `By.cssSelector` with unique attributes like `data-*`.
-                    - Use `By.xpath` only if CSS is insufficient.
-                    - Add wait conditions using `WebDriverWait` and `ExpectedConditions`.
+            1. **Analyze the Error**:
+                - Timeout = probably wrong locator or missing wait.
+                - Element not interactable = scrolling needed.
+                - Page not loaded = missing wait for `document.readyState`.
 
-            2. **Common Fixes**:
-                - Ensure element is visible: 
-                    ```java
-                    WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-                    WebElement btn = wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("submit")));
-                    ```
-                - Avoid `Thread.sleep()`. Use `WebDriverWait` instead.
-                - Handle overlays, dynamic loading using proper wait conditions.
+            2. **Fix Locator Issues**:
+                - If locator failed, reselect using:
+                    1. `By.cssSelector("[data-testid='id']")`
+                    2. `By.linkText("Text")`
+                    3. `By.xpath("//tag[contains(text(),'Text')]")`
+                    4. `By.name`, `By.id`, `By.className`
 
-            3. **Function Format**:
-                - Keep the same method signature: `public void step_X_name(WebDriver driver)`
-                - Wrap your implementation in double curly braces like:
-                    ```java
-                    public void step1_clickButton(WebDriver driver) {{
-                        // fixed implementation
-                    }}
-                    ```
-                - Do not include imports or class declaration.
-                - Return **only the corrected method code** — no markdown, no commentary.
+            3. **Fix Scroll and Sleep**:
+                - Scroll the target element into view and apply:
+                ```java
+                ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({{block: 'center'}});", element);
+                sleep(500);
+                ```
+
+            4. **Fix Multiple Matches**:
+                - Use `findElements` and stream filter to disambiguate by text or attribute.
+
+            5. **Fix Waits**:
+                - Ensure `visibilityOfElementLocated` and `elementToBeClickable` are used.
+
+            6. **Wait for Page Load** (after navigations):
+                - Wait until `document.readyState == 'complete'` after critical actions.
+
+            7. **Final Output**:
+                - Only return the corrected Java method code.
+                - Keep same function signature (`public void stepX_descriptiveName(WebDriver driver)`).
+                - Wrap method body in double curly braces `{{ ... }}`.
+
+            Example fixed method:
+            ```java
+            public void step2_clickInterviewProcessButton(WebDriver driver) {{
+                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+                JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+
+                jsExecutor.executeScript("window.scrollBy(0, 800);");
+                sleep(1000);
+
+                WebElement interviewButton = wait.until(ExpectedConditions.visibilityOfElementLocated(By.linkText("interview process")));
+                jsExecutor.executeScript("arguments[0].scrollIntoView({{block: 'center'}});", interviewButton);
+                sleep(500);
+
+                wait.until(ExpectedConditions.elementToBeClickable(interviewButton)).click();
+            }}
+            ```
             """
         )
     ]

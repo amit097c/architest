@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "API Testing Collection",
+    "description": "Postman collection for testing API endpoint",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Retrieve Post by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/posts/1",
+          "host": ["{{base_url}}"],
+          "path": ["posts", "1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Validate response status code",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Validate response body",
+              "pm.test(\"Response body contains title\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.title).to.not.be.empty;",
+              "});",
+              "",
+              "// Validate response headers",
+              "pm.test(\"Content-Type is application/json\", function () {",
+              "    pm.response.to.have.header(\"Content-Type\", \"application/json; charset=utf-8\");",
+              "});",
+              "",
+              "// Error handling",
+              "pm.test(\"Response body is valid JSON\", function () {",
+              "    try {",
+              "        JSON.parse(pm.response.text());",
+              "    } catch (e) {",
+              "        pm.expect.fail(\"Response body is not valid JSON\");",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://jsonplaceholder.typicode.com"
+    }
+  ]
+}
