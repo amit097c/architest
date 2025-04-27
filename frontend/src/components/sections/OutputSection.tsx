@@ -63,7 +63,23 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             size="icon"
             disabled={!testScript}
             onClick={() => {
+              if (!testScript) return;  // Safety check
               addStatusEvent("info", "Test script saved");
+              const blob = new Blob([testScript], { type: "text/plain" });
+
+              // Create a temporary URL pointing to that Blob
+              const url = window.URL.createObjectURL(blob);
+          
+              // Create a hidden <a> element and click it
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "generated_test_script.txt"; // Filename you want
+              document.body.appendChild(a); // Required for Firefox
+              a.click();
+          
+              // Clean up
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
             }}
             style={{ cursor: "pointer" }}
           >
